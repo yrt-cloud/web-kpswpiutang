@@ -1,0 +1,666 @@
+
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sistem Piutang Toko - Edisi Segar</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.25/jspdf.plugin.autotable.min.js"></script>
+    <style>
+        @media print {
+            .no-print { display: none !important; }
+        }
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-thumb { background: #009B4D; border-radius: 10px; }
+        
+        .modal-animate { animation: fadeIn 0.2s ease-out; }
+        @keyframes fadeIn { from { opacity: 0; transform: scale(0.95); } to { opacity: 1; transform: scale(1); } }
+
+        /* Custom Colors Override */
+        .bg-cream { background-color: #FAF5E9; }
+        .bg-green-primary { background-color: #009B4D; }
+        .bg-yellow-accent { background-color: #FFCC00; }
+        .text-green-primary { color: #009B4D; }
+        .border-green-primary { border-color: #009B4D; }
+        .focus-ring-green:focus { --tw-ring-color: #009B4D; }
+    </style>
+</head>
+<body class="bg-[#FAF5E9] text-slate-800 font-sans pb-20">
+
+    <!-- Header -->
+    <header class="bg-[#009B4D] text-white p-6 shadow-lg mb-8 no-print border-b-4 border-[#FFCC00]">
+        <div class="container mx-auto flex flex-col md:flex-row justify-between items-center gap-4">
+            <div>
+                <h1 class="text-2xl font-bold flex items-center gap-2">
+                    <div class="bg-[#FFCC00] p-1.5 rounded-lg">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-7 w-7 text-[#009B4D]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
+                        </svg>
+                    </div>
+                    KOPSWA ASIA AFRIKA 119
+	
+                </h1>
+                <p class="text-white/80 text-sm font-medium">Monitoring Transaksi & Pelunasan Pelanggan</p>
+            </div>
+            <div class="flex flex-wrap gap-2">
+                <button onclick="openProductManager()" class="bg-white text-[#009B4D] hover:bg-slate-100 px-4 py-2 rounded-lg text-sm font-bold transition flex items-center gap-2 shadow-sm border border-white/50">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" /></svg>
+                    Master Barang
+                </button>
+                <button onclick="openCustomerManager()" class="bg-[#FFCC00] text-[#009B4D] hover:bg-yellow-400 px-4 py-2 rounded-lg text-sm font-bold transition flex items-center gap-2 shadow-sm">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" /></svg>
+                    Pelanggan
+                </button>
+                <div class="flex gap-1">
+                    <button onclick="exportData()" class="bg-white/10 hover:bg-white/20 border border-white/30 px-3 py-2 rounded-lg text-xs font-medium transition" title="Simpan data ke file">
+                        Simpan Data
+                    </button>
+                    <label class="bg-white/10 hover:bg-white/20 border border-white/30 px-3 py-2 rounded-lg text-xs font-medium transition cursor-pointer flex items-center" title="Muat data dari file backup">
+                        Muat Data
+                        <input type="file" id="importFile" class="hidden" accept=".json" onchange="importData(event)">
+                    </label>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <main class="container mx-auto px-4 max-w-6xl">
+        
+        <!-- Stats & Charts Section -->
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8 no-print">
+            <div class="lg:col-span-1 space-y-4">
+                <div class="bg-white p-6 rounded-2xl shadow-sm border-l-8 border-[#009B4D]">
+                    <h3 class="text-slate-400 text-xs font-bold uppercase tracking-widest mb-1">Total Piutang Aktif</h3>
+                    <p id="totalPiutang" class="text-3xl font-black text-red-600">Rp 0</p>
+                </div>
+                
+                <!-- Add Transaction Form -->
+                <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
+                    <h3 class="text-[#009B4D] text-sm font-bold uppercase tracking-wider mb-4 flex items-center gap-2">
+                        <span class="w-1 h-4 bg-[#FFCC00] rounded-full"></span>
+                        Input Transaksi
+                    </h3>
+                    <div class="space-y-4">
+                        <div>
+                            <label class="text-[10px] text-slate-400 font-bold uppercase ml-1 mb-1 block">Nama Pelanggan</label>
+                            <input type="text" id="custName" list="customerSuggestions" placeholder="Cari atau Ketik Nama" class="w-full px-4 py-2.5 rounded-xl border-2 border-slate-100 focus:border-[#009B4D] outline-none transition">
+                            <datalist id="customerSuggestions"></datalist>
+                        </div>
+                        <div class="grid grid-cols-2 gap-2">
+                            <div>
+                                <label class="text-[10px] text-slate-400 font-bold uppercase ml-1 mb-1 block">Tanggal</label>
+                                <input type="date" id="transDate" class="w-full px-4 py-2 rounded-xl border-2 border-slate-100 focus:border-[#009B4D] outline-none text-sm">
+                            </div>
+                            <div>
+                                <label class="text-[10px] text-slate-400 font-bold uppercase ml-1 mb-1 block">Kuantitas (Qty)</label>
+                                <input type="number" id="itemQty" value="1" oninput="calculateTotal()" class="w-full px-4 py-2 rounded-xl border-2 border-slate-100 focus:border-[#009B4D] outline-none text-sm">
+                            </div>
+                        </div>
+                        <div>
+                            <label class="text-[10px] text-slate-400 font-bold uppercase ml-1 mb-1 block">Pilih Barang</label>
+                            <select id="itemSelector" onchange="autoFillPrice()" class="w-full px-4 py-2.5 rounded-xl border-2 border-slate-100 focus:border-[#009B4D] outline-none mb-2 text-sm bg-white">
+                                <option value="">-- Pilih dari Master Barang --</option>
+                            </select>
+                            <input type="text" id="itemName" list="productSuggestions" oninput="searchPriceByName()" placeholder="Nama Barang Manual" class="w-full px-4 py-2 rounded-xl border-2 border-slate-100 focus:border-[#009B4D] outline-none mb-2 text-sm">
+                            <datalist id="productSuggestions"></datalist>
+                            
+                            <div class="relative">
+                                <span class="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-sm">Rp</span>
+                                <input type="number" id="itemPrice" oninput="calculateTotal()" placeholder="0" class="w-full pl-12 pr-4 py-2.5 rounded-xl border-2 border-slate-100 focus:border-[#009B4D] outline-none font-bold text-slate-700">
+                            </div>
+                            <p id="totalDisplay" class="text-[10px] text-[#009B4D] font-black mt-2 text-right uppercase italic">Total: Rp 0</p>
+                        </div>
+                        <button onclick="tambahUtang()" class="w-full bg-[#009B4D] hover:bg-[#007a3d] text-white font-bold py-3.5 rounded-xl transition shadow-lg shadow-green-100 flex justify-center items-center gap-2">
+                            Simpan Transaksi
+                        </button>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="lg:col-span-2 bg-white p-8 rounded-2xl shadow-sm border border-slate-100 flex flex-col items-center">
+                <div class="w-full flex justify-between items-center mb-6">
+                    <h3 class="text-slate-800 font-extrabold flex items-center gap-2">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-[#FFCC00]" viewBox="0 0 20 20" fill="currentColor"><path d="M2 11a1 1 0 011-1h2a1 1 0 011 1v5a1 1 0 01-1 1H3a1 1 0 01-1-1v-5zM8 7a1 1 0 011-1h2a1 1 0 011 1v9a1 1 0 01-1 1H9a1 1 0 01-1-1V7zM14 4a1 1 0 011-1h2a1 1 0 011 1v12a1 1 0 01-1 1h-2a1 1 0 01-1-1V4z" /></svg>
+                        Grafik Ringkasan
+                    </h3>
+                    <span class="text-[10px] font-bold text-[#009B4D] bg-[#009B4D]/10 px-2 py-1 rounded-md">UPDATE OTOMATIS</span>
+                </div>
+                <div class="w-full h-full min-h-[320px]">
+                    <canvas id="debtChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- Table List -->
+        <div class="bg-white rounded-[2rem] shadow-sm border border-slate-200 overflow-hidden no-print">
+            <div class="p-8 border-b border-slate-50 flex flex-col md:flex-row justify-between items-center gap-4 bg-slate-50/30">
+                <div>
+                    <h2 class="font-black text-xl text-slate-800">Daftar Tagihan Pelanggan</h2>
+                    <p class="text-xs text-slate-400 mt-1">Kelola status dan pembayaran secara real-time</p>
+                </div>
+                <div class="flex items-center gap-2 bg-white px-4 py-2 rounded-full border border-slate-100 shadow-sm">
+                    <div class="w-3 h-3 bg-[#009B4D] rounded-full animate-pulse"></div>
+                    <span id="activeCountText" class="text-xs font-bold text-slate-500 uppercase tracking-tighter">0 Pelanggan Aktif</span>
+                </div>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="w-full text-left">
+                    <thead>
+                        <tr class="bg-slate-50/80 text-slate-400 text-[10px] font-bold uppercase tracking-[0.2em]">
+                            <th class="px-8 py-5">Nama Pelanggan</th>
+                            <th class="px-4 py-5 text-center">Status</th>
+                            <th class="px-4 py-5 text-right">Sisa Tagihan</th>
+                            <th class="px-8 py-5 text-center">Aksi</th>
+                        </tr>
+                    </thead>
+                    <tbody id="debtTableBody" class="divide-y divide-slate-50"></tbody>
+                </table>
+            </div>
+        </div>
+    </main>
+
+    <!-- Modal Master Barang -->
+    <div id="productModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden items-center justify-center p-4 z-50 no-print">
+        <div class="bg-white rounded-[2.5rem] max-w-2xl w-full max-h-[85vh] flex flex-col shadow-2xl modal-animate border-t-8 border-[#009B4D]">
+            <div class="p-8 border-b border-slate-50 flex justify-between items-center">
+                <h2 class="text-2xl font-black text-slate-800">Master Barang</h2>
+                <button onclick="closeProductManager()" class="p-2 bg-slate-100 text-slate-400 hover:text-red-500 rounded-full transition">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
+                </button>
+            </div>
+            <div class="p-8 bg-slate-50/50 space-y-3">
+                <div class="grid grid-cols-2 gap-2">
+                    <input type="text" id="newProductName" placeholder="Nama Barang..." class="px-5 py-3 rounded-2xl border-2 border-slate-200 focus:border-[#009B4D] outline-none shadow-inner">
+                    <input type="number" id="newProductPrice" placeholder="Harga Jual..." class="px-5 py-3 rounded-2xl border-2 border-slate-200 focus:border-[#009B4D] outline-none shadow-inner font-bold">
+                </div>
+                <button onclick="registerNewProduct()" class="w-full py-3 bg-[#009B4D] text-white rounded-2xl font-bold hover:bg-[#007a3d] transition shadow-lg shadow-green-100">Tambah ke Daftar</button>
+            </div>
+            <div class="p-6 overflow-y-auto flex-grow custom-scrollbar">
+                <div id="productList" class="grid grid-cols-1 gap-2"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Pelanggan -->
+    <div id="customerModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden items-center justify-center p-4 z-50 no-print">
+        <div class="bg-white rounded-[2.5rem] max-w-2xl w-full max-h-[85vh] flex flex-col shadow-2xl modal-animate border-t-8 border-[#009B4D]">
+            <div class="p-8 border-b border-slate-50 flex justify-between items-center">
+                <h2 class="text-2xl font-black text-slate-800">Kelola Pelanggan</h2>
+                <button onclick="closeCustomerManager()" class="p-2 bg-slate-100 text-slate-400 hover:text-red-500 rounded-full transition">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
+                </button>
+            </div>
+            <div class="p-8 bg-slate-50/50">
+                <div class="flex gap-2">
+                    <input type="text" id="newCustomerName" placeholder="Nama Pelanggan Baru..." class="flex-grow px-5 py-3 rounded-2xl border-2 border-slate-200 focus:border-[#009B4D] outline-none shadow-inner">
+                    <button onclick="registerNewCustomer()" class="px-8 bg-[#009B4D] text-white rounded-2xl font-bold hover:bg-[#007a3d] transition shadow-lg shadow-green-100">Daftar</button>
+                </div>
+            </div>
+            <div class="p-6 overflow-y-auto flex-grow custom-scrollbar">
+                <div id="customerList" class="grid grid-cols-1 md:grid-cols-2 gap-3"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Detail Nota -->
+    <div id="detailModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden items-center justify-center p-4 z-50 no-print">
+        <div class="bg-white rounded-[2.5rem] max-w-3xl w-full max-h-[90vh] flex flex-col shadow-2xl modal-animate border-t-8 border-[#FFCC00]">
+            <div class="p-8 flex justify-between items-start">
+                <div>
+                    <h2 id="detailTitle" class="text-2xl font-black text-slate-800">Rincian Nota</h2>
+                    <p id="detailSubtitle" class="text-sm text-slate-400 font-medium"></p>
+                </div>
+                <button onclick="closeDetailModal()" class="p-2 bg-slate-50 text-slate-400 rounded-full hover:bg-slate-100 transition">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
+                </button>
+            </div>
+            <div class="px-8 overflow-y-auto flex-grow">
+                <table class="w-full text-sm">
+                    <thead>
+                        <tr class="text-left text-slate-400 border-b border-slate-100 uppercase tracking-widest text-[10px]">
+                            <th class="pb-4 font-bold">Tanggal</th>
+                            <th class="pb-4 font-bold">Item</th>
+                            <th class="pb-4 font-bold text-center">Qty</th>
+                            <th class="pb-4 font-bold text-right">Subtotal</th>
+                        </tr>
+                    </thead>
+                    <tbody id="detailTableBody" class="divide-y divide-slate-50"></tbody>
+                </table>
+            </div>
+            <div class="p-8 mt-4 bg-slate-50 flex justify-between items-center rounded-b-[2.5rem]">
+                <div>
+                    <p class="text-[10px] font-bold text-slate-400 uppercase mb-1">Total Saldo Tagihan</p>
+                    <p id="detailTotalBalance" class="text-2xl font-black text-red-600"></p>
+                </div>
+                <button onclick="closeDetailModal()" class="px-10 py-3 bg-[#009B4D] text-white rounded-2xl font-bold shadow-lg shadow-green-100 hover:scale-105 transition">Selesai</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Notification Toast -->
+    <div id="toast" class="fixed bottom-10 left-1/2 -translate-x-1/2 bg-slate-900 text-white px-8 py-4 rounded-2xl shadow-2xl transition-all translate-y-20 opacity-0 z-[100] flex items-center gap-3">
+        <div class="bg-[#009B4D] p-1 rounded-full"><svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7" /></svg></div>
+        <span id="toastMsg" class="font-bold text-sm">Berhasil disimpan</span>
+    </div>
+
+    <script>
+        // State Management
+        let data = JSON.parse(localStorage.getItem('toko_utang_v3')) || { 
+            customers: [], 
+            records: [],
+            products: [] 
+        };
+        let myChart = null;
+
+        window.onload = () => {
+            document.getElementById('transDate').valueAsDate = new Date();
+            refreshUI();
+        };
+
+        function showToast(msg) {
+            const t = document.getElementById('toast');
+            document.getElementById('toastMsg').innerText = msg;
+            t.classList.remove('translate-y-20', 'opacity-0');
+            setTimeout(() => t.classList.add('translate-y-20', 'opacity-0'), 3000);
+        }
+
+        function formatIDR(num) {
+            return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(num);
+        }
+
+        function save() { localStorage.setItem('toko_utang_v3', JSON.stringify(data)); }
+
+        function refreshUI() {
+            renderTable();
+            updateStats();
+            updateSuggestions();
+            updateProductSelector();
+        }
+
+        // --- CALCULATION LOGIC ---
+        function calculateTotal() {
+            const qty = parseInt(document.getElementById('itemQty').value) || 0;
+            const price = parseFloat(document.getElementById('itemPrice').value) || 0;
+            const total = qty * price;
+            document.getElementById('totalDisplay').innerText = `Total: ${formatIDR(total)}`;
+        }
+
+        // --- CUSTOMER MANAGEMENT ---
+        function openCustomerManager() {
+            renderCustomerList();
+            document.getElementById('customerModal').classList.replace('hidden', 'flex');
+        }
+
+        function closeCustomerManager() {
+            document.getElementById('customerModal').classList.replace('flex', 'hidden');
+        }
+
+        function registerNewCustomer() {
+            const name = document.getElementById('newCustomerName').value.trim();
+            if (!name || data.customers.includes(name)) return;
+            data.customers.push(name);
+            data.customers.sort();
+            document.getElementById('newCustomerName').value = '';
+            save(); renderCustomerList(); updateSuggestions();
+            showToast("Pelanggan baru terdaftar");
+        }
+
+        function renderCustomerList() {
+            const list = document.getElementById('customerList');
+            list.innerHTML = data.customers.map(name => `
+                <div class="flex justify-between items-center p-4 bg-white border-2 border-slate-50 rounded-2xl hover:border-[#009B4D]/20 transition group">
+                    <span class="font-bold text-slate-700">${name}</span>
+                    <button onclick="deleteCustomer('${name}')" class="text-slate-200 hover:text-red-500 transition">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                    </button>
+                </div>
+            `).join('');
+        }
+
+        function deleteCustomer(name) {
+            if (confirm(`Hapus ${name}? Semua data hutang orang ini TIDAK akan hilang, hanya namanya yang dihapus dari daftar saran.`)) {
+                data.customers = data.customers.filter(c => c !== name);
+                save(); renderCustomerList(); updateSuggestions();
+            }
+        }
+
+        // --- PRODUCT MANAGEMENT ---
+        function openProductManager() {
+            renderProductList();
+            document.getElementById('productModal').classList.replace('hidden', 'flex');
+        }
+
+        function closeProductManager() {
+            document.getElementById('productModal').classList.replace('flex', 'hidden');
+        }
+
+        function registerNewProduct() {
+            const name = document.getElementById('newProductName').value.trim();
+            const price = parseFloat(document.getElementById('newProductPrice').value);
+            
+            if (!name || isNaN(price)) return showToast("Lengkapi nama & harga barang!");
+            
+            data.products.push({ id: Date.now(), name, price });
+            data.products.sort((a,b) => a.name.localeCompare(b.name));
+            
+            document.getElementById('newProductName').value = '';
+            document.getElementById('newProductPrice').value = '';
+            
+            save(); renderProductList(); updateProductSelector();
+            showToast("Barang ditambahkan!");
+        }
+
+        function renderProductList() {
+            const list = document.getElementById('productList');
+            list.innerHTML = data.products.map(p => `
+                <div class="flex justify-between items-center p-4 bg-slate-50 rounded-2xl border border-slate-100">
+                    <div>
+                        <p class="font-bold text-slate-800">${p.name}</p>
+                        <p class="text-xs text-[#009B4D] font-black">${formatIDR(p.price)}</p>
+                    </div>
+                    <button onclick="deleteProduct(${p.id})" class="text-slate-300 hover:text-red-500 transition">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                    </button>
+                </div>
+            `).join('');
+        }
+
+        function deleteProduct(id) {
+            data.products = data.products.filter(p => p.id !== id);
+            save(); renderProductList(); updateProductSelector();
+        }
+
+        function updateProductSelector() {
+            const selector = document.getElementById('itemSelector');
+            const productSuggestions = document.getElementById('productSuggestions');
+            const currentVal = selector.value;
+            
+            // Dropdown selector
+            selector.innerHTML = '<option value="">-- Pilih dari Master Barang --</option>' + 
+                data.products.map(p => `<option value="${p.id}">${p.name} - ${formatIDR(p.price)}</option>`).join('');
+            selector.value = currentVal;
+            
+            // Datalist for manual input
+            productSuggestions.innerHTML = data.products.map(p => `<option value="${p.name}">`).join('');
+        }
+
+        function autoFillPrice() {
+            const productId = document.getElementById('itemSelector').value;
+            if (!productId) return;
+            
+            const product = data.products.find(p => p.id == productId);
+            if (product) {
+                document.getElementById('itemName').value = product.name;
+                document.getElementById('itemPrice').value = product.price;
+                calculateTotal();
+            }
+        }
+
+        // FITUR BARU: Cari harga berdasarkan nama saat mengetik manual
+        function searchPriceByName() {
+            const nameInput = document.getElementById('itemName').value.trim().toLowerCase();
+            const product = data.products.find(p => p.name.toLowerCase() === nameInput);
+            
+            if (product) {
+                document.getElementById('itemPrice').value = product.price;
+            }
+            calculateTotal();
+        }
+
+        // --- TRANSACTION LOGIC ---
+        function updateSuggestions() {
+            const dl = document.getElementById('customerSuggestions');
+            dl.innerHTML = data.customers.map(c => `<option value="${c}">`).join('');
+        }
+
+        function tambahUtang() {
+            const name = document.getElementById('custName').value.trim();
+            const date = document.getElementById('transDate').value;
+            const item = document.getElementById('itemName').value.trim();
+            const qty = parseInt(document.getElementById('itemQty').value) || 1;
+            const price = parseFloat(document.getElementById('itemPrice').value);
+
+            if (!name || !item || isNaN(price)) return showToast("Lengkapi data transaksi!");
+
+            const total = price * qty;
+            const displayDate = date ? new Date(date).toLocaleDateString('id-ID') : new Date().toLocaleDateString('id-ID');
+
+            let record = data.records.find(r => r.name.toLowerCase() === name.toLowerCase());
+
+            const historyEntry = { date: displayDate, amount: total, qty, pricePerUnit: price, type: 'UTANG', detail: item };
+
+            if (record) {
+                record.balance += total;
+                record.history.push(historyEntry);
+            } else {
+                data.records.push({
+                    id: Date.now(),
+                    name: name,
+                    balance: total,
+                    createdAt: displayDate,
+                    history: [historyEntry]
+                });
+                if (!data.customers.includes(name)) {
+                    data.customers.push(name);
+                    data.customers.sort();
+                }
+            }
+
+            save(); refreshUI();
+            document.getElementById('itemName').value = '';
+            document.getElementById('itemPrice').value = '';
+            document.getElementById('itemQty').value = '1';
+            document.getElementById('itemSelector').value = '';
+            document.getElementById('totalDisplay').innerText = `Total: Rp 0`;
+            showToast("Transaksi berhasil dicatat!");
+        }
+
+        function renderTable() {
+            const tbody = document.getElementById('debtTableBody');
+            tbody.innerHTML = '';
+            const activeRecs = data.records.filter(r => r.balance > 0).length;
+            document.getElementById('activeCountText').innerText = `${activeRecs} Pelanggan Aktif`;
+
+            data.records.sort((a,b) => b.balance - a.balance).forEach(r => {
+                const lunas = r.balance <= 0;
+                tbody.innerHTML += `
+                    <tr class="group hover:bg-[#FAF5E9]/50 transition cursor-pointer" onclick="openDetailModal(${r.id})">
+                        <td class="px-8 py-6">
+                            <div class="flex items-center gap-4">
+                                <div class="h-10 w-10 bg-[#009B4D] text-white flex items-center justify-center font-black rounded-xl shadow-sm">
+                                    ${r.name.charAt(0).toUpperCase()}
+                                </div>
+                                <div>
+                                    <p class="font-black text-slate-800 group-hover:text-[#009B4D] transition">${r.name}</p>
+                                    <p class="text-[10px] text-slate-400 font-bold uppercase tracking-tighter italic">Sejak ${r.createdAt}</p>
+                                </div>
+                            </div>
+                        </td>
+                        <td class="px-4 py-6 text-center">
+                            <span class="px-3 py-1 rounded-lg text-[10px] font-black tracking-widest ${lunas ? 'bg-emerald-100 text-emerald-600' : 'bg-[#FFCC00]/20 text-[#009B4D]'}">
+                                ${lunas ? 'LUNAS' : 'AKTIF'}
+                            </span>
+                        </td>
+                        <td class="px-4 py-6 text-right font-black text-lg ${lunas ? 'text-emerald-500' : 'text-red-500'}">${formatIDR(r.balance)}</td>
+                        <td class="px-8 py-6" onclick="event.stopPropagation()">
+                            <div class="flex justify-center gap-2">
+                                ${!lunas ? `
+                                <button onclick="openPayModal(${r.id})" class="p-2.5 bg-[#009B4D] text-white rounded-xl shadow-md hover:scale-110 transition">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path d="M4 4a2 2 0 00-2 2v1h16V6a2 2 0 00-2-2H4z" /><path fill-rule="evenodd" d="M18 9H2v5a2 2 0 002 2h12a2 2 0 002-2V9zM4 13a1 1 0 011-1h1a1 1 0 110 2H5a1 1 0 01-1-1zm5-1a1 1 0 100 2h1a1 1 0 100-2H9z" clip-rule="evenodd" /></svg>
+                                </button>` : ''}
+                                <button onclick="downloadPDF(${r.id})" class="p-2.5 bg-white border border-slate-200 text-slate-400 hover:text-[#009B4D] rounded-xl hover:bg-slate-50 transition">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
+                                </button>
+                                <button onclick="hapusRecord(${r.id})" class="p-2.5 text-slate-200 hover:text-red-500 transition">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                `;
+            });
+        }
+
+        function openDetailModal(id) {
+            const r = data.records.find(x => x.id === id);
+            document.getElementById('detailTitle').innerText = r.name;
+            document.getElementById('detailSubtitle').innerText = `Riwayat pengambilan barang dan pelunasan nota.`;
+            document.getElementById('detailTotalBalance').innerText = formatIDR(r.balance);
+            
+            const tbody = document.getElementById('detailTableBody');
+            tbody.innerHTML = r.history.map(h => {
+                const utang = h.type === 'UTANG';
+                return `
+                    <tr class="hover:bg-slate-50 transition">
+                        <td class="py-4 text-slate-400 text-[11px] font-bold">${h.date}</td>
+                        <td class="py-4">
+                            <p class="font-bold text-slate-800">${h.detail}</p>
+                            ${utang ? `<p class="text-[10px] text-slate-400 font-medium">@ ${formatIDR(h.pricePerUnit)}</p>` : ''}
+                        </td>
+                        <td class="py-4 text-center font-bold text-slate-500">${h.qty || '-'}</td>
+                        <td class="py-4 text-right font-black ${utang ? 'text-red-500' : 'text-emerald-500'}">
+                            ${utang ? '+' : '-'}${formatIDR(h.amount).replace('Rp', '').trim()}
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+
+            document.getElementById('detailModal').classList.replace('hidden', 'flex');
+        }
+
+        function closeDetailModal() { document.getElementById('detailModal').classList.replace('flex', 'hidden'); }
+
+        function openPayModal(id) {
+            const r = data.records.find(x => x.id === id);
+            const val = prompt(`Masukkan jumlah bayar untuk ${r.name} (Tagihan: ${formatIDR(r.balance)})`);
+            const pay = parseFloat(val);
+            if (!isNaN(pay) && pay > 0) {
+                if (pay > r.balance) return alert("Pembayaran melebihi utang!");
+                r.balance -= pay;
+                r.history.push({
+                    date: new Date().toLocaleDateString('id-ID'),
+                    amount: pay,
+                    type: 'BAYAR',
+                    detail: 'Pembayaran Piutang',
+                    qty: 1
+                });
+                save(); refreshUI(); showToast("Pembayaran berhasil!");
+            }
+        }
+
+        function hapusRecord(id) {
+            if (confirm("Hapus seluruh catatan orang ini secara permanen?")) {
+                data.records = data.records.filter(r => r.id !== id);
+                save(); refreshUI(); showToast("Catatan dihapus.");
+            }
+        }
+
+        function updateStats() {
+            const utang = data.records.reduce((acc, r) => acc + r.balance, 0);
+            const terbayar = data.records.reduce((acc, r) => {
+                return acc + r.history.filter(h => h.type === 'BAYAR').reduce((a, b) => a + b.amount, 0);
+            }, 0);
+            
+            document.getElementById('totalPiutang').innerText = formatIDR(utang);
+
+            const ctx = document.getElementById('debtChart').getContext('2d');
+            if (myChart) myChart.destroy();
+            myChart = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: ['Sisa Piutang', 'Total Terbayar'],
+                    datasets: [{
+                        data: [utang, terbayar],
+                        backgroundColor: ['#ef4444', '#009B4D'],
+                        borderWidth: 6,
+                        borderColor: '#ffffff',
+                        hoverOffset: 10
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { 
+                        legend: { position: 'bottom', labels: { font: { weight: 'bold', family: 'sans-serif' }, padding: 25, usePointStyle: true } } 
+                    },
+                    cutout: '70%'
+                }
+            });
+        }
+
+        async function downloadPDF(id) {
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF();
+            const r = data.records.find(x => x.id === id);
+            
+            doc.setFillColor(0, 155, 77); // #009B4D
+            doc.rect(0, 0, 210, 30, 'F');
+            doc.setTextColor(255, 255, 255);
+            doc.setFontSize(18);
+            doc.text(`NOTA TAGIHAN: ${r.name.toUpperCase()}`, 15, 20);
+            
+            doc.setTextColor(40, 40, 40);
+            doc.setFontSize(10);
+            doc.text(`Waktu Cetak: ${new Date().toLocaleString('id-ID')}`, 15, 40);
+            doc.setFont(undefined, 'bold');
+            doc.text(`SISA TAGIHAN AKHIR: ${formatIDR(r.balance)}`, 15, 48);
+
+            doc.autoTable({
+                startY: 55,
+                head: [['Tanggal', 'Tipe', 'Keterangan', 'Qty', 'Harga Satuan', 'Jumlah']],
+                body: r.history.map(h => [
+                    h.date, 
+                    h.type === 'UTANG' ? 'AMBIL' : 'BAYAR', 
+                    h.detail, 
+                    h.qty || '-',
+                    h.type === 'UTANG' ? formatIDR(h.pricePerUnit) : '-',
+                    formatIDR(h.amount)
+                ]),
+                headStyles: { fillColor: [0, 155, 77] },
+                columnStyles: {
+                    3: { halign: 'center' },
+                    4: { halign: 'right' },
+                    5: { halign: 'right' }
+                }
+            });
+
+            doc.save(`Nota_${r.name}.pdf`);
+        }
+
+        // --- BACKUP & RESTORE ---
+        function exportData() {
+            const blob = new Blob([JSON.stringify(data)], { type: 'application/json' });
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(blob);
+            a.download = `Backup_Toko_${new Date().toISOString().split('T')[0]}.json`;
+            a.click();
+            showToast("Backup berhasil diunduh");
+        }
+
+        function importData(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                try {
+                    const imported = JSON.parse(e.target.result);
+                    if (confirm("Apakah Anda yakin ingin menimpa data saat ini dengan data dari file backup?")) {
+                        data = imported;
+                        save();
+                        refreshUI();
+                        showToast("Data berhasil dimuat!");
+                    }
+                } catch (err) {
+                    alert("File tidak valid!");
+                }
+            };
+            reader.readAsText(file);
+            event.target.value = ''; // Reset input
+        }
+    </script>
+</body>
+</html>
