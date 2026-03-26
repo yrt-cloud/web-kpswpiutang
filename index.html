@@ -9,11 +9,6 @@
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap');
         
-        :root {
-            --primary: #4f46e5;
-            --primary-hover: #4338ca;
-        }
-
         body {
             font-family: 'Plus Jakarta Sans', sans-serif;
             background-color: #f8fafc;
@@ -49,357 +44,264 @@
             justify-content: center;
         }
 
-        .history-scroll-area {
-            max-height: 350px; 
-            overflow-y: auto;
-            overflow-x: hidden;
-            padding-right: 8px;
-            -webkit-overflow-scrolling: touch;
-        }
-
-        .history-scroll-area::-webkit-scrollbar { width: 6px; }
-        .history-scroll-area::-webkit-scrollbar-track { background: #f1f5f9; }
-        .history-scroll-area::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
-
+        /* --- STYLES KHUSUS CETAK --- */
         @media print {
             @page { 
                 size: A4 portrait; 
                 margin: 15mm; 
             }
             
-            body { 
-                background: white !important; 
-                color: black !important;
-                padding: 0 !important;
-                margin: 0 !important;
-                font-size: 10pt;
-            }
+            body { background: white !important; }
+            .no-print { display: none !important; }
 
-            .no-print, 
-            #searchInput, 
-            #paymentFormContainer, 
-            #mainFormContainer, 
-            .lg\:col-span-3, 
-            .lg\:col-span-5,
-            header, 
-            .modal-close-btn,
-            button,
-            .p-5.border-t { 
-                display: none !important; 
-            }
+            /* Sembunyikan semua elemen utama secara default saat print */
+            #mainContent, #historyModal { display: none !important; }
 
-            #historyModal {
-                position: absolute !important;
-                display: block !important;
+            /* JIKA SEDANG CETAK LAPORAN UTAMA */
+            body.print-report #mainContent { 
+                display: block !important; 
+            }
+            body.print-report .print-header-report { display: block !important; text-align: center; margin-bottom: 20px; border-bottom: 3px double black; padding-bottom: 10px; }
+            body.print-report #printableTable { display: table !important; width: 100%; border-collapse: collapse; }
+            body.print-report #printableTable th, body.print-report #printableTable td { border: 1px solid black !important; padding: 8px; font-size: 10pt; }
+            body.print-report .no-print-col { display: none !important; }
+            body.print-report .print-footer-report { display: flex !important; justify-content: space-between; margin-top: 50px; }
+
+            /* JIKA SEDANG CETAK RIWAYAT */
+            body.print-history #historyModal { 
+                display: block !important; 
+                position: static !important;
                 background: white !important;
-                z-index: auto !important;
-                width: 100% !important;
-                height: auto !important;
             }
-
-            #historyModal .bg-white {
-                box-shadow: none !important;
-                width: 100% !important;
+            body.print-history .modal-content { 
+                box-shadow: none !important; 
+                width: 100% !important; 
                 max-width: none !important;
                 margin: 0 !important;
-                border: none !important;
-            }
-
-            .glass-card { 
-                border: none !important; 
-                box-shadow: none !important;
                 padding: 0 !important;
             }
-
-            #historyHeader {
-                border-bottom: 2pt solid black !important;
-                padding-bottom: 10px !important;
-                margin-bottom: 20px !important;
-            }
-
-            table {
-                width: 100% !important;
-                border-collapse: collapse !important;
-                margin-bottom: 20px !important;
-            }
-
-            th, td {
-                border: 0.5pt solid #000 !important;
-                padding: 8px 10px !important;
-                word-wrap: break-word;
-            }
-
-            th { 
-                background-color: #f0f0f0 !important;
-                -webkit-print-color-adjust: exact;
-            }
-
-            .history-scroll-area {
-                max-height: none !important;
-                overflow: visible !important;
-                padding: 0 !important;
-            }
-
-            .print-footer {
-                page-break-inside: avoid;
-                margin-top: 30px;
-            }
-            
-            #historyTablePrint { display: table !important; }
-            #historyList { display: none !important; }
-            
-            /* Print colors forcing */
-            .text-emerald-600 { color: #059669 !important; -webkit-print-color-adjust: exact; }
-            .text-rose-600 { color: #e11d48 !important; -webkit-print-color-adjust: exact; }
+            body.print-history .print-header-history { display: block !important; text-align: center; margin-bottom: 20px; border-bottom: 3px double black; padding-bottom: 10px; }
+            body.print-history #historyTablePrint { display: table !important; width: 100%; border-collapse: collapse; margin-top: 15px; }
+            body.print-history #historyTablePrint th, body.print-history #historyTablePrint td { border: 1px solid black !important; padding: 6px; font-size: 10pt; }
+            body.print-history .print-footer-history { display: flex !important; justify-content: space-between; margin-top: 50px; }
         }
 
-        #historyTablePrint { display: none; }
+        /* Tampilan elemen cetak di layar biasa */
+        .print-only { display: none; }
     </style>
 </head>
 <body class="p-4 md:p-8">
 
-    <!-- MODAL DETAIL TRANSAKSI -->
+    <!-- MODAL DETAIL RIWAYAT -->
     <div id="historyModal" class="modal">
-        <div class="bg-white w-full max-w-lg rounded-2xl shadow-2xl overflow-hidden flex flex-col m-4" style="max-height: 90vh;">
+        <div class="modal-content bg-white w-full max-w-xl rounded-2xl shadow-2xl overflow-hidden flex flex-col m-4" style="max-height: 90vh;">
+            <!-- Header Modal Layar -->
             <div class="p-5 border-b border-slate-100 flex justify-between items-center no-print">
-                <div class="flex items-center gap-2">
-                    <div class="w-8 h-8 bg-indigo-100 text-indigo-600 rounded-lg flex items-center justify-center">
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" stroke-width="2"></path></svg>
-                    </div>
-                    <h3 class="text-lg font-bold text-slate-800">Detail Pembayaran</h3>
-                </div>
-                <button onclick="closeHistoryModal()" class="modal-close-btn text-slate-400 hover:text-slate-600 text-2xl">&times;</button>
+                <h3 class="text-lg font-bold text-slate-800">Detail Riwayat Transaksi</h3>
+                <button onclick="closeHistoryModal()" class="text-slate-400 hover:text-slate-600 text-2xl">&times;</button>
             </div>
             
-            <div class="p-6 overflow-hidden flex-1 flex flex-col" id="printArea">
+            <div class="p-6 overflow-y-auto flex-1">
+                <!-- Header Laporan Saat Cetak Riwayat -->
+                <div class="print-only print-header-history">
+                    <h1 class="text-xl font-bold uppercase">Laporan Riwayat Transaksi Pinjaman</h1>
+                    <p class="text-sm">Koperasi Karyawan Swadaya (KOPSWA)</p>
+                </div>
+
                 <div id="historyHeader"></div>
-                <h4 class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3 no-print">Daftar Aktivitas</h4>
                 
-                <div id="historyList" class="history-scroll-area space-y-2 no-print"></div>
+                <!-- Tampilan Layar (Cards) -->
+                <div id="historyList" class="space-y-2 no-print"></div>
                 
-                <table id="historyTablePrint" class="w-full text-sm">
+                <!-- Tampilan Cetak (Tabel) -->
+                <table id="historyTablePrint" class="print-only w-full text-sm">
                     <thead>
                         <tr>
-                            <th class="text-left" style="width: 10%;">No</th>
-                            <th class="text-left" style="width: 40%;">Tanggal</th>
-                            <th class="text-left" style="width: 20%;">Tipe</th>
+                            <th style="width: 8%;">No</th>
+                            <th style="width: 25%;">Tanggal</th>
+                            <th style="width: 35%;">Tipe</th>
                             <th class="text-right">Nominal (Rp)</th>
                         </tr>
                     </thead>
                     <tbody id="historyTableBodyPrint"></tbody>
                 </table>
 
-                <div class="hidden print:block print-footer mt-10">
-                    <div class="flex justify-between text-center">
-                        <div class="w-48">
-                            <p class="mb-20 font-bold">Penerima,</p>
-                            <p class="border-t border-black pt-1 font-bold">( ............................ )</p>
-                        </div>
-                        <div class="w-48">
-                            <p class="mb-20 font-bold">Bendahara,</p>
-                            <p class="border-t border-black pt-1 font-bold">( ............................ )</p>
-                        </div>
+                <!-- Tanda Tangan Cetak Riwayat -->
+                <div class="print-only print-footer-history">
+                    <div class="text-center w-40">
+                        <p class="text-sm mb-16">Penerima,</p>
+                        <p class="font-bold border-t border-black pt-1">( ............................ )</p>
+                    </div>
+                    <div class="text-center w-40">
+                        <p class="text-sm mb-16">Bendahara,</p>
+                        <p class="font-bold border-t border-black pt-1">( ............................ )</p>
                     </div>
                 </div>
             </div>
 
             <div class="p-5 border-t border-slate-100 bg-slate-50 flex gap-3 no-print">
-                <button onclick="printHistory()" class="flex-1 bg-slate-900 text-white py-3 rounded-xl font-bold hover:bg-black transition flex items-center justify-center gap-2">
+                <button onclick="printHistory()" class="flex-1 bg-indigo-600 text-white py-3 rounded-xl font-bold hover:bg-indigo-700 transition flex items-center justify-center gap-2">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" stroke-width="2"></path></svg>
                     Cetak Riwayat
                 </button>
-                <button onclick="closeHistoryModal()" class="flex-1 bg-white border border-slate-200 text-slate-600 py-3 rounded-xl font-bold hover:bg-slate-100 transition">Tutup</button>
+                <button onclick="closeHistoryModal()" class="flex-1 bg-white border border-slate-200 text-slate-600 py-3 rounded-xl font-bold">Tutup</button>
             </div>
         </div>
     </div>
 
-    <div class="max-w-6xl mx-auto">
-        <div class="flex flex-col md:flex-row md:items-center justify-between mb-8 gap-4">
+    <!-- KONTEN UTAMA -->
+    <div id="mainContent" class="max-w-6xl mx-auto">
+        <!-- Header Layar -->
+        <div class="flex flex-col md:flex-row md:items-center justify-between mb-8 gap-4 no-print">
             <div>
                 <h1 class="text-3xl font-extrabold text-slate-900">Rekap Kasbon Non Anggota</h1>
-                <p id="subHeader" class="text-slate-500">Laporan Keuangan Tahun Buku 2024</p>
+                <p class="text-slate-500 font-medium">Monitoring Piutang KOPSWA</p>
             </div>
             <div class="flex gap-3">
                 <div class="glass-card p-4 px-6 text-right border-l-4 border-l-rose-500">
                     <p class="text-[10px] font-bold text-slate-400 uppercase">Piutang Aktif</p>
                     <p id="total-unpaid" class="text-xl font-black text-rose-600">Rp 0</p>
                 </div>
-                <div class="glass-card p-4 px-6 text-right bg-indigo-600 text-white border-none">
-                    <p class="text-[10px] font-bold opacity-60 uppercase">Total Keseluruhan</p>
-                    <p id="total-overall" class="text-xl font-black">Rp 0</p>
-                </div>
             </div>
         </div>
 
         <div class="no-print grid grid-cols-1 lg:grid-cols-12 gap-6 mb-8">
-            <div class="lg:col-span-4">
+            <!-- Form Input & Chart Sembunyi Saat Cetak -->
+            <div class="lg:col-span-4 space-y-4">
                 <div id="mainFormContainer" class="glass-card p-6 border-t-4 border-t-indigo-500">
-                    <h3 id="labelForm" class="font-bold text-slate-800 mb-4 flex items-center gap-2">
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M12 4v16m8-8H4" stroke-width="2.5"></path></svg>
-                        Input Data Pinjaman
-                    </h3>
+                    <h3 id="labelForm" class="font-bold text-slate-800 mb-4">Input Data Baru</h3>
                     <form id="dataForm" class="space-y-3">
                         <input type="hidden" id="editIndex" value="-1">
-                        <input type="text" id="inputNama" placeholder="Nama Lengkap" class="w-full p-3 bg-slate-50 border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-indigo-500" required>
-                        <input type="text" id="inputKet" placeholder="Keterangan Pinjaman" class="w-full p-3 bg-slate-50 border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-indigo-500" required>
-                        <div class="grid grid-cols-2 gap-2">
-                            <input type="date" id="inputTgl" class="w-full p-3 bg-slate-50 border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-indigo-500" required>
-                            <select id="inputStatus" class="w-full p-3 bg-slate-50 border border-slate-200 rounded-lg outline-none">
-                                <option value="Belum Lunas">Belum Lunas</option>
-                                <option value="Lunas">Lunas</option>
-                            </select>
-                        </div>
-                        <input type="number" id="inputJumlah" placeholder="Nominal Pinjaman (Rp)" class="w-full p-3 bg-slate-50 border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-indigo-500 font-bold" required>
-                        <div class="flex gap-2 pt-2">
-                            <button type="submit" id="btnSubmit" class="flex-1 bg-indigo-600 text-white py-3 rounded-lg font-bold hover:bg-indigo-700 transition shadow-lg shadow-indigo-200">Simpan</button>
-                            <button type="button" onclick="resetForm()" id="btnCancel" class="hidden flex-1 bg-slate-100 text-slate-500 py-3 rounded-lg font-bold">Batal</button>
+                        <input type="text" id="inputNama" placeholder="Nama" class="w-full p-3 bg-slate-50 border border-slate-200 rounded-lg outline-none" required>
+                        <input type="text" id="inputKet" placeholder="Keterangan" class="w-full p-3 bg-slate-50 border border-slate-200 rounded-lg outline-none" required>
+                        <input type="date" id="inputTgl" class="w-full p-3 bg-slate-50 border border-slate-200 rounded-lg outline-none" required>
+                        <input type="number" id="inputJumlah" placeholder="Nominal" class="w-full p-3 bg-slate-50 border border-slate-200 rounded-lg outline-none font-bold" required>
+                        <div class="flex gap-2">
+                            <button type="submit" id="btnSubmit" class="flex-1 bg-indigo-600 text-white py-3 rounded-lg font-bold">Simpan</button>
+                            <button type="button" onclick="resetForm()" id="btnCancel" class="hidden px-4 bg-slate-100 text-slate-500 rounded-lg">X</button>
                         </div>
                     </form>
-                    <p class="text-[9px] text-slate-400 mt-3 italic">*Jika nama sudah ada, nominal akan otomatis ditambahkan ke saldo piutang orang tersebut.</p>
                 </div>
 
-                <div id="paymentFormContainer" class="glass-card p-6 bg-emerald-50 border-emerald-200 hidden">
-                    <h3 class="font-bold text-emerald-800 mb-1">Input Pembayaran</h3>
-                    <p id="payTargetName" class="text-[10px] font-medium text-emerald-600 mb-4 uppercase tracking-wider"></p>
+                <!-- Form Bayar -->
+                <div id="paymentFormContainer" class="glass-card p-6 bg-emerald-50 hidden">
+                    <h3 class="font-bold text-emerald-800 mb-4">Input Pembayaran</h3>
+                    <p id="payTargetName" class="text-xs font-bold text-emerald-600 mb-2"></p>
                     <div class="space-y-3">
-                        <input type="date" id="inputBayarTgl" class="w-full p-3 border border-emerald-200 rounded-lg outline-none">
-                        <input type="number" id="inputBayarNominal" placeholder="Rp 0" class="w-full p-3 border border-emerald-300 rounded-lg outline-none font-bold text-emerald-700">
-                    </div>
-                    <div class="flex gap-2 mt-4">
-                        <button onclick="processPayment()" class="flex-1 bg-emerald-600 text-white py-3 rounded-lg font-bold shadow-lg shadow-emerald-200">Bayar</button>
-                        <button onclick="closePaymentForm()" class="px-4 bg-white text-emerald-600 border border-emerald-200 rounded-lg font-bold">Batal</button>
+                        <input type="date" id="inputBayarTgl" class="w-full p-3 border border-emerald-200 rounded-lg">
+                        <input type="number" id="inputBayarNominal" placeholder="Nominal Bayar" class="w-full p-3 border border-emerald-200 rounded-lg font-bold">
+                        <button onclick="processPayment()" class="w-full bg-emerald-600 text-white py-3 rounded-lg font-bold">Proses Bayar</button>
+                        <button onclick="closePaymentForm()" class="w-full text-emerald-600 text-sm">Batal</button>
                     </div>
                 </div>
             </div>
 
-            <div class="lg:col-span-5">
-                <div class="glass-card p-6 h-full flex flex-col">
-                    <h3 class="font-bold text-slate-800 mb-4">Distribusi Piutang</h3>
-                    <div class="flex-1 flex items-center justify-center relative">
-                        <canvas id="debtChart"></canvas>
-                    </div>
-                </div>
+            <!-- Chart -->
+            <div class="lg:col-span-5 glass-card p-6 flex items-center justify-center">
+                <canvas id="debtChart"></canvas>
             </div>
 
-            <div class="lg:col-span-3">
-                <div class="glass-card p-6 h-full flex flex-col gap-3">
-                    <h3 class="font-bold text-slate-800 mb-2 flex items-center gap-2">
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" stroke-width="2"></path></svg>
-                        Opsi Data
-                    </h3>
-                    <button onclick="window.print()" class="w-full bg-slate-900 text-white py-3 rounded-lg font-bold hover:bg-black transition flex items-center justify-center gap-2">
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" stroke-width="2"></path></svg>
-                        Cetak Laporan
-                    </button>
-                    <div class="grid grid-cols-2 gap-2">
-                        <button onclick="exportData()" class="border border-slate-200 text-slate-600 py-3 rounded-lg font-bold hover:bg-slate-50 transition text-sm">Ekspor JSON</button>
-                        <label class="border border-slate-200 text-slate-600 py-3 rounded-lg font-bold hover:bg-slate-50 transition text-center cursor-pointer text-sm">
-                            Impor JSON
-                            <input type="file" id="importFile" class="hidden" onchange="importData(event)">
-                        </label>
-                    </div>
+            <!-- Opsi -->
+            <div class="lg:col-span-3 glass-card p-6 flex flex-col gap-3">
+                <h3 class="font-bold text-slate-800 mb-2">Menu Laporan</h3>
+                <button onclick="printMainReport()" class="w-full bg-slate-900 text-white py-3 rounded-lg font-bold hover:bg-black transition">Cetak Laporan Utama</button>
+                <div class="grid grid-cols-2 gap-2">
+                    <button onclick="exportData()" class="border border-slate-200 text-slate-600 py-2 rounded-lg text-sm font-bold">Ekspor</button>
+                    <label class="border border-slate-200 text-slate-600 py-2 rounded-lg text-sm font-bold text-center cursor-pointer">
+                        Impor <input type="file" class="hidden" onchange="importData(event)">
+                    </label>
                 </div>
             </div>
         </div>
 
-        <div class="no-print glass-card p-2 mb-6 flex items-center px-4 focus-within:ring-2 focus-within:ring-indigo-200 transition">
-            <svg class="w-5 h-5 text-slate-400 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" stroke-width="2"></path></svg>
-            <input type="text" id="searchInput" onkeyup="renderTable()" placeholder="Cari nama peminjam..." class="w-full p-2 outline-none bg-transparent text-sm">
-        </div>
+        <!-- AREA DAFTAR TABEL -->
+        <div id="reportArea">
+            <div class="print-only print-header-report">
+                <h1 class="text-xl font-bold uppercase">Rekapitulasi Pinjaman Non Anggota</h1>
+                <p class="text-sm">KOPSWA - Per Tanggal: <span id="currentDatePrint"></span></p>
+            </div>
 
-        <div class="glass-card overflow-hidden">
-            <div class="overflow-x-auto">
-                <table class="w-full text-left" id="printableTable">
-                    <thead class="bg-slate-50 border-b border-slate-100">
+            <div class="no-print glass-card p-2 mb-4 flex items-center px-4">
+                <input type="text" id="searchInput" onkeyup="renderTable()" placeholder="Cari data..." class="w-full p-2 outline-none">
+            </div>
+
+            <div class="glass-card overflow-hidden">
+                <table id="printableTable" class="w-full text-left">
+                    <thead class="bg-slate-50 border-b">
                         <tr>
-                            <th class="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Peminjam</th>
-                            <th class="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Keterangan</th>
-                            <th class="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Status</th>
-                            <th class="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest text-right">Sisa Tagihan</th>
-                            <th class="no-print px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest text-center">Aksi</th>
+                            <th class="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase">Nama Peminjam</th>
+                            <th class="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase">Keterangan</th>
+                            <th class="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase text-center">Status</th>
+                            <th class="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase text-right">Sisa Tagihan</th>
+                            <th class="no-print no-print-col px-6 py-4 text-center">Aksi</th>
                         </tr>
                     </thead>
                     <tbody id="tableBody" class="divide-y divide-slate-100"></tbody>
                 </table>
             </div>
-        </div>
 
-        <div class="hidden print:block print-footer">
-            <div class="flex justify-between text-center">
-                <div class="w-64">
-                    <p class="mb-24 font-bold">Bendahara,</p>
-                    <p class="border-t border-black pt-2 font-bold">( ............................ )</p>
+            <div class="print-only print-footer-report">
+                <div class="text-center w-48">
+                    <p class="text-sm mb-20">Mengetahui,</p>
+                    <p class="font-bold border-t border-black pt-1">( ............................ )</p>
+                    <p class="text-[10px]">Ketua Koperasi</p>
                 </div>
-                <div class="w-64">
-                    <p class="mb-24 font-bold">Penerima,</p>
-                    <p class="border-t border-black pt-2 font-bold">( ............................ )</p>
+                <div class="text-center w-48">
+                    <p class="text-sm mb-20">Bogor, <span id="footerDate"></span></p>
+                    <p class="font-bold border-t border-black pt-1">( ............................ )</p>
+                    <p class="text-[10px]">Bendahara</p>
                 </div>
-            </div>
-            <div class="flex justify-between items-end mt-10">
-                <p class="text-[10px] text-slate-400 italic">Dicetak pada: <span id="printTimestamp"></span></p>
-                <p class="text-[10px] text-slate-400 font-bold uppercase">Halaman 1 dari 1</p>
             </div>
         </div>
     </div>
 
     <script>
-        let dataHutang = JSON.parse(localStorage.getItem('kasbonDataV7')) || [];
+        let dataHutang = JSON.parse(localStorage.getItem('kasbonDataV8')) || [];
         let activePaymentIndex = -1;
         let myChart = null;
 
         function saveAndRefresh() {
-            localStorage.setItem('kasbonDataV7', JSON.stringify(dataHutang));
+            localStorage.setItem('kasbonDataV8', JSON.stringify(dataHutang));
             renderTable();
             updateChart();
         }
+
+        // Logic Cetak Terpisah
+        function printMainReport() {
+            document.body.classList.add('print-report');
+            document.body.classList.remove('print-history');
+            window.print();
+        }
+
+        function printHistory() {
+            document.body.classList.add('print-history');
+            document.body.classList.remove('print-report');
+            window.print();
+        }
+
+        // Reset class print setelah jendela cetak ditutup
+        window.onafterprint = () => {
+            document.body.classList.remove('print-report', 'print-history');
+        };
 
         const form = document.getElementById('dataForm');
         form.onsubmit = (e) => {
             e.preventDefault();
             const editIndex = parseInt(document.getElementById('editIndex').value);
-            const inputNama = document.getElementById('inputNama').value.trim();
+            const inputNama = document.getElementById('inputNama').value;
             const inputNominal = parseInt(document.getElementById('inputJumlah').value);
             const inputTgl = document.getElementById('inputTgl').value;
             const inputKet = document.getElementById('inputKet').value;
 
-            const dateParts = inputTgl.split('-');
-            const formattedDate = `${dateParts[2]}/${dateParts[1]}/${dateParts[0]}`;
-
-            const existingIndex = dataHutang.findIndex(item => item.nama.toLowerCase() === inputNama.toLowerCase());
-
-            if (editIndex === -1 && existingIndex > -1) {
-                const target = dataHutang[existingIndex];
-                target.nominalAwal = (target.nominalAwal || target.jumlah) + inputNominal;
-                target.jumlah += inputNominal;
-                target.status = "Belum Lunas";
-                if (!target.history) target.history = [];
-                target.history.push({ 
-                    tgl: formattedDate, 
-                    bayar: inputNominal, 
-                    tipe: 'Peminjaman' 
+            if (editIndex > -1) {
+                dataHutang[editIndex] = { ...dataHutang[editIndex], nama: inputNama, ket: inputKet, tanggal: inputTgl, jumlah: inputNominal };
+            } else {
+                dataHutang.push({
+                    nama: inputNama, ket: inputKet, tanggal: inputTgl, jumlah: inputNominal,
+                    status: 'Belum Lunas', nominalAwal: inputNominal,
+                    history: [{ tgl: inputTgl.split('-').reverse().join('/'), bayar: inputNominal, tipe: 'Peminjaman' }]
                 });
-                alert(`Nama "${inputNama}" ditemukan. Nominal ditambahkan ke saldo piutang.`);
-            } 
-            else if (editIndex > -1) {
-                dataHutang[editIndex].nama = inputNama;
-                dataHutang[editIndex].ket = inputKet;
-                dataHutang[editIndex].tanggal = inputTgl;
-                dataHutang[editIndex].jumlah = inputNominal;
-                dataHutang[editIndex].status = document.getElementById('inputStatus').value;
-            } 
-            else {
-                const newData = {
-                    nama: inputNama,
-                    ket: inputKet,
-                    tanggal: inputTgl,
-                    jumlah: inputNominal,
-                    status: document.getElementById('inputStatus').value,
-                    nominalAwal: inputNominal,
-                    history: [{ tgl: formattedDate, bayar: inputNominal, tipe: 'Peminjaman' }]
-                };
-                dataHutang.push(newData);
             }
-
             saveAndRefresh();
             resetForm();
         };
@@ -407,8 +309,6 @@
         function resetForm() {
             form.reset();
             document.getElementById('editIndex').value = "-1";
-            document.getElementById('labelForm').innerHTML = `<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M12 4v16m8-8H4" stroke-width="2.5"></path></svg> Input Data Pinjaman`;
-            document.getElementById('btnSubmit').innerText = "Simpan";
             document.getElementById('btnCancel').classList.add('hidden');
         }
 
@@ -419,79 +319,37 @@
         function renderTable() {
             const tbody = document.getElementById('tableBody');
             const search = document.getElementById('searchInput').value.toLowerCase();
-            let totalOverall = 0;
             let totalUnpaid = 0;
             
             tbody.innerHTML = '';
             dataHutang.forEach((item, index) => {
-                if (item.nama.toLowerCase().includes(search) || item.ket.toLowerCase().includes(search)) {
-                    totalOverall += (item.nominalAwal || item.jumlah);
+                if (item.nama.toLowerCase().includes(search)) {
                     if(item.status !== "Lunas") totalUnpaid += item.jumlah;
-
-                    const statusClass = item.status === 'Lunas' ? 'status-paid' : 'status-unpaid';
-                    
                     tbody.innerHTML += `
-                        <tr class="hover:bg-slate-50 transition border-b border-slate-100">
-                            <td class="px-6 py-4">
-                                <p class="font-bold text-slate-800">${item.nama}</p>
-                                <p class="text-[10px] text-slate-400">${item.tanggal}</p>
-                            </td>
-                            <td class="px-6 py-4 text-sm text-slate-600">${item.ket}</td>
-                            <td class="px-6 py-4"><span class="status-pill ${statusClass}">${item.status}</span></td>
-                            <td class="px-6 py-4 text-right font-bold ${item.status === 'Lunas' ? 'text-slate-300' : 'text-slate-900'}">${formatRupiah(item.jumlah)}</td>
-                            <td class="no-print px-6 py-4">
-                                <div class="flex justify-center gap-1">
-                                    ${item.status !== 'Lunas' ? `<button onclick="openPayment(${index})" class="bg-emerald-500 text-white px-2 py-1 rounded text-[9px] font-bold">BAYAR</button>` : ''}
-                                    <button onclick="showHistory(${index})" class="bg-slate-100 text-slate-600 px-2 py-1 rounded text-[9px] font-bold">HISTORY</button>
-                                    <button onclick="editRow(${index})" class="text-indigo-600 p-1"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" stroke-width="2"></path></svg></button>
-                                    <button onclick="deleteRow(${index})" class="text-rose-600 p-1"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" stroke-width="2"></path></svg></button>
+                        <tr>
+                            <td class="px-6 py-4 font-bold">${item.nama}<br><span class="text-[10px] text-slate-400">${item.tanggal}</span></td>
+                            <td class="px-6 py-4 text-sm">${item.ket}</td>
+                            <td class="px-6 py-4 text-center"><span class="status-pill ${item.status === 'Lunas' ? 'status-paid' : 'status-unpaid'}">${item.status}</span></td>
+                            <td class="px-6 py-4 text-right font-bold">${formatRupiah(item.jumlah)}</td>
+                            <td class="no-print no-print-col px-6 py-4 text-center">
+                                <div class="flex gap-1 justify-center">
+                                    <button onclick="openPayment(${index})" class="bg-emerald-500 text-white px-2 py-1 rounded text-[9px] font-bold">BAYAR</button>
+                                    <button onclick="showHistory(${index})" class="bg-slate-100 text-slate-600 px-2 py-1 rounded text-[9px] font-bold">RIWAYAT</button>
+                                    <button onclick="deleteRow(${index})" class="text-rose-600 px-2">Hapus</button>
                                 </div>
                             </td>
-                        </tr>
-                    `;
+                        </tr>`;
                 }
             });
-
-            document.getElementById('total-overall').innerText = formatRupiah(totalOverall);
             document.getElementById('total-unpaid').innerText = formatRupiah(totalUnpaid);
-            document.getElementById('printTimestamp').innerText = new Date().toLocaleString('id-ID');
-        }
-
-        function updateChart() {
-            const ctx = document.getElementById('debtChart').getContext('2d');
-            const active = dataHutang.filter(d => d.jumlah > 0);
-            if (myChart) myChart.destroy();
-            
-            if (active.length === 0) {
-                ctx.font = "14px Plus Jakarta Sans";
-                ctx.textAlign = "center";
-                ctx.fillText("Tidak ada data pinjaman aktif", ctx.canvas.width/2, ctx.canvas.height/2);
-                return;
-            }
-
-            myChart = new Chart(ctx, {
-                type: 'doughnut',
-                data: {
-                    labels: active.map(d => d.nama),
-                    datasets: [{
-                        data: active.map(d => d.jumlah),
-                        backgroundColor: ['#4f46e5', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4'],
-                        borderWidth: 0,
-                        hoverOffset: 10
-                    }]
-                },
-                options: { 
-                    responsive: true, 
-                    maintainAspectRatio: false, 
-                    cutout: '75%', 
-                    plugins: { legend: { display: false } } 
-                }
-            });
+            const dateStr = new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
+            document.getElementById('currentDatePrint').innerText = dateStr;
+            document.getElementById('footerDate').innerText = dateStr;
         }
 
         function openPayment(index) {
             activePaymentIndex = index;
-            document.getElementById('payTargetName').innerText = "Angsuran: " + dataHutang[index].nama;
+            document.getElementById('payTargetName').innerText = dataHutang[index].nama;
             document.getElementById('paymentFormContainer').classList.remove('hidden');
             document.getElementById('mainFormContainer').classList.add('hidden');
             document.getElementById('inputBayarTgl').value = new Date().toISOString().split('T')[0];
@@ -500,27 +358,17 @@
         function closePaymentForm() {
             document.getElementById('paymentFormContainer').classList.add('hidden');
             document.getElementById('mainFormContainer').classList.remove('hidden');
-            activePaymentIndex = -1;
         }
 
         function processPayment() {
             const nominal = parseInt(document.getElementById('inputBayarNominal').value);
-            const tglBayar = document.getElementById('inputBayarTgl').value;
-            if (!nominal || nominal <= 0) return;
+            const tgl = document.getElementById('inputBayarTgl').value;
+            if (!nominal) return;
             
             const item = dataHutang[activePaymentIndex];
-            if(!item.history) item.history = [];
-            
-            const dateParts = tglBayar.split('-');
-            const formattedDate = `${dateParts[2]}/${dateParts[1]}/${dateParts[0]}`;
-            
-            item.history.push({ tgl: formattedDate, bayar: nominal, tipe: 'Pembayaran' });
+            item.history.push({ tgl: tgl.split('-').reverse().join('/'), bayar: nominal, tipe: 'Pembayaran' });
             item.jumlah -= nominal;
-            
-            if (item.jumlah <= 0) {
-                item.jumlah = 0;
-                item.status = "Lunas";
-            }
+            if (item.jumlah <= 0) { item.jumlah = 0; item.status = "Lunas"; }
             
             saveAndRefresh();
             closePaymentForm();
@@ -529,117 +377,57 @@
 
         function showHistory(index) {
             const item = dataHutang[index];
-            const header = document.getElementById('historyHeader');
+            document.getElementById('historyHeader').innerHTML = `
+                <div class="mb-4 p-4 bg-slate-50 rounded-xl">
+                    <p class="text-xs text-slate-400 font-bold uppercase">Nama Peminjam</p>
+                    <h2 class="text-xl font-black">${item.nama}</h2>
+                    <p class="text-sm text-slate-500">Ket: ${item.ket}</p>
+                </div>`;
+
             const list = document.getElementById('historyList');
-            const printTableBody = document.getElementById('historyTableBodyPrint');
-            const nominalAwal = item.nominalAwal || item.jumlah;
-            
-            header.innerHTML = `
-                <div class="mb-6">
-                    <h2 class="text-2xl font-black text-slate-900 mb-1">${item.nama}</h2>
-                    <p class="text-sm text-slate-500">${item.ket}</p>
-                    <div class="grid grid-cols-2 gap-4 mt-6 p-4 bg-slate-50 rounded-xl border border-slate-100 print:bg-transparent print:border-none print:p-0">
-                        <div>
-                            <p class="text-[9px] font-bold text-slate-400 uppercase">Total Pinjaman</p>
-                            <p class="font-bold text-slate-800">${formatRupiah(nominalAwal)}</p>
-                        </div>
-                        <div class="text-right">
-                            <p class="text-[9px] font-bold text-slate-400 uppercase">Sisa Tagihan</p>
-                            <p class="font-bold text-rose-600 print:text-black">${formatRupiah(item.jumlah)}</p>
-                        </div>
-                    </div>
-                </div>
-            `;
+            const printTable = document.getElementById('historyTableBodyPrint');
+            list.innerHTML = ''; printTable.innerHTML = '';
 
-            list.innerHTML = '';
-            printTableBody.innerHTML = '';
+            item.history.forEach((h, i) => {
+                list.innerHTML += `<div class="p-3 bg-white border rounded-xl flex justify-between">
+                    <div><p class="text-sm font-bold">${h.tgl}</p><p class="text-[9px] text-indigo-500 font-bold">${h.tipe}</p></div>
+                    <p class="font-bold">${formatRupiah(h.bayar)}</p>
+                </div>`;
+                printTable.innerHTML += `<tr><td class="text-center">${i+1}</td><td>${h.tgl}</td><td>${h.tipe}</td><td class="text-right">${formatRupiah(h.bayar)}</td></tr>`;
+            });
 
-            if (!item.history || item.history.length === 0) {
-                list.innerHTML = `<div class="text-center py-12"><p class="text-slate-400 text-sm italic">Belum ada catatan.</p></div>`;
-            } else {
-                item.history.forEach((h, i) => {
-                    const isPayment = h.tipe === 'Pembayaran' || h.tipe === 'Angsuran';
-                    const label = isPayment ? 'BAYAR' : 'PINJAMAN';
-                    const iconBg = isPayment ? 'bg-emerald-100 text-emerald-600' : 'bg-rose-100 text-rose-600';
-                    const sign = isPayment ? '' : '- ';
-                    const colorClass = isPayment ? 'text-emerald-600' : 'text-rose-600';
+            document.getElementById('historyModal').style.display = 'flex';
+        }
 
-                    list.innerHTML += `
-                        <div class="flex justify-between items-center p-3 bg-white border border-slate-100 rounded-xl hover:shadow-sm transition">
-                            <div class="flex items-center gap-3">
-                                <span class="w-16 h-8 flex items-center justify-center ${iconBg} rounded text-[10px] font-bold tracking-tight">${label}</span>
-                                <div>
-                                    <p class="text-slate-800 font-bold text-sm">${h.tgl}</p>
-                                    <p class="text-slate-400 text-[10px]">${isPayment ? 'Uang Masuk' : 'Uang Keluar'}</p>
-                                </div>
-                            </div>
-                            <span class="font-bold ${colorClass}">${sign}${formatRupiah(h.bayar)}</span>
-                        </div>
-                    `;
-                    printTableBody.innerHTML += `
-                        <tr>
-                            <td>${i+1}</td>
-                            <td>${h.tgl}</td>
-                            <td class="${colorClass} font-bold">${label}</td>
-                            <td class="text-right font-bold ${colorClass}">${sign}${formatRupiah(h.bayar)}</td>
-                        </tr>
-                    `;
+        function updateChart() {
+            const ctx = document.getElementById('debtChart').getContext('2d');
+            const active = dataHutang.filter(d => d.jumlah > 0);
+            if (myChart) myChart.destroy();
+            if (active.length > 0) {
+                myChart = new Chart(ctx, {
+                    type: 'doughnut',
+                    data: {
+                        labels: active.map(d => d.nama),
+                        datasets: [{ data: active.map(d => d.jumlah), backgroundColor: ['#4f46e5', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6'] }]
+                    },
+                    options: { responsive: true, plugins: { legend: { display: false } } }
                 });
             }
-            
-            document.getElementById('historyModal').style.display = 'flex';
-            list.scrollTop = 0;
         }
 
-        function closeHistoryModal() { 
-            document.getElementById('historyModal').style.display = 'none'; 
-        }
-
-        function printHistory() { window.print(); }
-
-        function editRow(index) {
-            const item = dataHutang[index];
-            document.getElementById('editIndex').value = index;
-            document.getElementById('inputNama').value = item.nama;
-            document.getElementById('inputKet').value = item.ket;
-            document.getElementById('inputTgl').value = item.tanggal;
-            document.getElementById('inputJumlah').value = item.jumlah;
-            document.getElementById('inputStatus').value = item.status;
-            document.getElementById('labelForm').innerText = "Edit: " + item.nama;
-            document.getElementById('btnSubmit').innerText = "Update Data";
-            document.getElementById('btnCancel').classList.remove('hidden');
-            window.scrollTo({ top: 0, behavior: 'smooth' });
-        }
-
-        function deleteRow(index) {
-            if (confirm('Data ini akan dihapus permanen. Lanjutkan?')) {
-                dataHutang.splice(index, 1);
-                saveAndRefresh();
-            }
-        }
-
+        function deleteRow(index) { if (confirm('Hapus data?')) { dataHutang.splice(index, 1); saveAndRefresh(); } }
+        function closeHistoryModal() { document.getElementById('historyModal').style.display = 'none'; }
         function exportData() {
-            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(dataHutang));
-            const downloadAnchorNode = document.createElement('a');
-            downloadAnchorNode.setAttribute("href", dataStr);
-            downloadAnchorNode.setAttribute("download", "rekap_piutang_" + new Date().toISOString().slice(0,10) + ".json");
-            downloadAnchorNode.click();
-            downloadAnchorNode.remove();
+            const blob = new Blob([JSON.stringify(dataHutang)], {type: "application/json"});
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a'); a.href = url; a.download = "data_kasbon.json"; a.click();
         }
-
-        function importData(event) {
+        function importData(e) {
             const reader = new FileReader();
-            reader.onload = (e) => {
-                try {
-                    dataHutang = JSON.parse(e.target.result);
-                    saveAndRefresh();
-                    alert("Data berhasil dipulihkan!");
-                } catch (err) { alert("File tidak dikenali."); }
-            };
-            reader.readAsText(event.target.files[0]);
+            reader.onload = (ev) => { dataHutang = JSON.parse(ev.target.result); saveAndRefresh(); };
+            reader.readAsText(e.target.files[0]);
         }
 
-        window.onclick = (e) => { if (e.target == document.getElementById('historyModal')) closeHistoryModal(); }
         window.onload = () => { renderTable(); updateChart(); };
     </script>
 </body>
