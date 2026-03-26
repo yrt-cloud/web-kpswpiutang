@@ -1,666 +1,646 @@
-
 <!DOCTYPE html>
 <html lang="id">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sistem Piutang Toko - Edisi Segar</title>
+    <title>Rekap Kasbon Non Anggota</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.25/jspdf.plugin.autotable.min.js"></script>
     <style>
-        @media print {
-            .no-print { display: none !important; }
-        }
-        ::-webkit-scrollbar { width: 8px; }
-        ::-webkit-scrollbar-thumb { background: #009B4D; border-radius: 10px; }
+        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap');
         
-        .modal-animate { animation: fadeIn 0.2s ease-out; }
-        @keyframes fadeIn { from { opacity: 0; transform: scale(0.95); } to { opacity: 1; transform: scale(1); } }
+        :root {
+            --primary: #4f46e5;
+            --primary-hover: #4338ca;
+        }
 
-        /* Custom Colors Override */
-        .bg-cream { background-color: #FAF5E9; }
-        .bg-green-primary { background-color: #009B4D; }
-        .bg-yellow-accent { background-color: #FFCC00; }
-        .text-green-primary { color: #009B4D; }
-        .border-green-primary { border-color: #009B4D; }
-        .focus-ring-green:focus { --tw-ring-color: #009B4D; }
+        body {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            background-color: #f8fafc;
+            color: #1e293b;
+        }
+
+        .glass-card {
+            background: white;
+            border: 1px solid #e2e8f0;
+            border-radius: 12px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+
+        .status-pill {
+            padding: 2px 10px;
+            border-radius: 9999px;
+            font-size: 0.7rem;
+            font-weight: 700;
+        }
+        .status-unpaid { background-color: #fee2e2; color: #991b1b; }
+        .status-paid { background-color: #dcfce7; color: #166534; }
+        
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 100;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            align-items: center;
+            justify-content: center;
+        }
+
+        .history-scroll-area {
+            max-height: 350px; 
+            overflow-y: auto;
+            overflow-x: hidden;
+            padding-right: 8px;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        .history-scroll-area::-webkit-scrollbar { width: 6px; }
+        .history-scroll-area::-webkit-scrollbar-track { background: #f1f5f9; }
+        .history-scroll-area::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+
+        @media print {
+            @page { 
+                size: A4 portrait; 
+                margin: 15mm; 
+            }
+            
+            body { 
+                background: white !important; 
+                color: black !important;
+                padding: 0 !important;
+                margin: 0 !important;
+                font-size: 10pt;
+            }
+
+            .no-print, 
+            #searchInput, 
+            #paymentFormContainer, 
+            #mainFormContainer, 
+            .lg\:col-span-3, 
+            .lg\:col-span-5,
+            header, 
+            .modal-close-btn,
+            button,
+            .p-5.border-t { 
+                display: none !important; 
+            }
+
+            #historyModal {
+                position: absolute !important;
+                display: block !important;
+                background: white !important;
+                z-index: auto !important;
+                width: 100% !important;
+                height: auto !important;
+            }
+
+            #historyModal .bg-white {
+                box-shadow: none !important;
+                width: 100% !important;
+                max-width: none !important;
+                margin: 0 !important;
+                border: none !important;
+            }
+
+            .glass-card { 
+                border: none !important; 
+                box-shadow: none !important;
+                padding: 0 !important;
+            }
+
+            #historyHeader {
+                border-bottom: 2pt solid black !important;
+                padding-bottom: 10px !important;
+                margin-bottom: 20px !important;
+            }
+
+            table {
+                width: 100% !important;
+                border-collapse: collapse !important;
+                margin-bottom: 20px !important;
+            }
+
+            th, td {
+                border: 0.5pt solid #000 !important;
+                padding: 8px 10px !important;
+                word-wrap: break-word;
+            }
+
+            th { 
+                background-color: #f0f0f0 !important;
+                -webkit-print-color-adjust: exact;
+            }
+
+            .history-scroll-area {
+                max-height: none !important;
+                overflow: visible !important;
+                padding: 0 !important;
+            }
+
+            .print-footer {
+                page-break-inside: avoid;
+                margin-top: 30px;
+            }
+            
+            #historyTablePrint { display: table !important; }
+            #historyList { display: none !important; }
+            
+            /* Print colors forcing */
+            .text-emerald-600 { color: #059669 !important; -webkit-print-color-adjust: exact; }
+            .text-rose-600 { color: #e11d48 !important; -webkit-print-color-adjust: exact; }
+        }
+
+        #historyTablePrint { display: none; }
     </style>
 </head>
-<body class="bg-[#FAF5E9] text-slate-800 font-sans pb-20">
+<body class="p-4 md:p-8">
 
-    <!-- Header -->
-    <header class="bg-[#009B4D] text-white p-6 shadow-lg mb-8 no-print border-b-4 border-[#FFCC00]">
-        <div class="container mx-auto flex flex-col md:flex-row justify-between items-center gap-4">
-            <div>
-                <h1 class="text-2xl font-bold flex items-center gap-2">
-                    <div class="bg-[#FFCC00] p-1.5 rounded-lg">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-7 w-7 text-[#009B4D]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
-                        </svg>
+    <!-- MODAL DETAIL TRANSAKSI -->
+    <div id="historyModal" class="modal">
+        <div class="bg-white w-full max-w-lg rounded-2xl shadow-2xl overflow-hidden flex flex-col m-4" style="max-height: 90vh;">
+            <div class="p-5 border-b border-slate-100 flex justify-between items-center no-print">
+                <div class="flex items-center gap-2">
+                    <div class="w-8 h-8 bg-indigo-100 text-indigo-600 rounded-lg flex items-center justify-center">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" stroke-width="2"></path></svg>
                     </div>
-                    KOPSWA ASIA AFRIKA 119
-	
-                </h1>
-                <p class="text-white/80 text-sm font-medium">Monitoring Transaksi & Pelunasan Pelanggan</p>
-            </div>
-            <div class="flex flex-wrap gap-2">
-                <button onclick="openProductManager()" class="bg-white text-[#009B4D] hover:bg-slate-100 px-4 py-2 rounded-lg text-sm font-bold transition flex items-center gap-2 shadow-sm border border-white/50">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" /></svg>
-                    Master Barang
-                </button>
-                <button onclick="openCustomerManager()" class="bg-[#FFCC00] text-[#009B4D] hover:bg-yellow-400 px-4 py-2 rounded-lg text-sm font-bold transition flex items-center gap-2 shadow-sm">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" /></svg>
-                    Pelanggan
-                </button>
-                <div class="flex gap-1">
-                    <button onclick="exportData()" class="bg-white/10 hover:bg-white/20 border border-white/30 px-3 py-2 rounded-lg text-xs font-medium transition" title="Simpan data ke file">
-                        Simpan Data
-                    </button>
-                    <label class="bg-white/10 hover:bg-white/20 border border-white/30 px-3 py-2 rounded-lg text-xs font-medium transition cursor-pointer flex items-center" title="Muat data dari file backup">
-                        Muat Data
-                        <input type="file" id="importFile" class="hidden" accept=".json" onchange="importData(event)">
-                    </label>
+                    <h3 class="text-lg font-bold text-slate-800">Detail Pembayaran</h3>
                 </div>
-            </div>
-        </div>
-    </header>
-
-    <main class="container mx-auto px-4 max-w-6xl">
-        
-        <!-- Stats & Charts Section -->
-        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8 no-print">
-            <div class="lg:col-span-1 space-y-4">
-                <div class="bg-white p-6 rounded-2xl shadow-sm border-l-8 border-[#009B4D]">
-                    <h3 class="text-slate-400 text-xs font-bold uppercase tracking-widest mb-1">Total Piutang Aktif</h3>
-                    <p id="totalPiutang" class="text-3xl font-black text-red-600">Rp 0</p>
-                </div>
-                
-                <!-- Add Transaction Form -->
-                <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
-                    <h3 class="text-[#009B4D] text-sm font-bold uppercase tracking-wider mb-4 flex items-center gap-2">
-                        <span class="w-1 h-4 bg-[#FFCC00] rounded-full"></span>
-                        Input Transaksi
-                    </h3>
-                    <div class="space-y-4">
-                        <div>
-                            <label class="text-[10px] text-slate-400 font-bold uppercase ml-1 mb-1 block">Nama Pelanggan</label>
-                            <input type="text" id="custName" list="customerSuggestions" placeholder="Cari atau Ketik Nama" class="w-full px-4 py-2.5 rounded-xl border-2 border-slate-100 focus:border-[#009B4D] outline-none transition">
-                            <datalist id="customerSuggestions"></datalist>
-                        </div>
-                        <div class="grid grid-cols-2 gap-2">
-                            <div>
-                                <label class="text-[10px] text-slate-400 font-bold uppercase ml-1 mb-1 block">Tanggal</label>
-                                <input type="date" id="transDate" class="w-full px-4 py-2 rounded-xl border-2 border-slate-100 focus:border-[#009B4D] outline-none text-sm">
-                            </div>
-                            <div>
-                                <label class="text-[10px] text-slate-400 font-bold uppercase ml-1 mb-1 block">Kuantitas (Qty)</label>
-                                <input type="number" id="itemQty" value="1" oninput="calculateTotal()" class="w-full px-4 py-2 rounded-xl border-2 border-slate-100 focus:border-[#009B4D] outline-none text-sm">
-                            </div>
-                        </div>
-                        <div>
-                            <label class="text-[10px] text-slate-400 font-bold uppercase ml-1 mb-1 block">Pilih Barang</label>
-                            <select id="itemSelector" onchange="autoFillPrice()" class="w-full px-4 py-2.5 rounded-xl border-2 border-slate-100 focus:border-[#009B4D] outline-none mb-2 text-sm bg-white">
-                                <option value="">-- Pilih dari Master Barang --</option>
-                            </select>
-                            <input type="text" id="itemName" list="productSuggestions" oninput="searchPriceByName()" placeholder="Nama Barang Manual" class="w-full px-4 py-2 rounded-xl border-2 border-slate-100 focus:border-[#009B4D] outline-none mb-2 text-sm">
-                            <datalist id="productSuggestions"></datalist>
-                            
-                            <div class="relative">
-                                <span class="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-sm">Rp</span>
-                                <input type="number" id="itemPrice" oninput="calculateTotal()" placeholder="0" class="w-full pl-12 pr-4 py-2.5 rounded-xl border-2 border-slate-100 focus:border-[#009B4D] outline-none font-bold text-slate-700">
-                            </div>
-                            <p id="totalDisplay" class="text-[10px] text-[#009B4D] font-black mt-2 text-right uppercase italic">Total: Rp 0</p>
-                        </div>
-                        <button onclick="tambahUtang()" class="w-full bg-[#009B4D] hover:bg-[#007a3d] text-white font-bold py-3.5 rounded-xl transition shadow-lg shadow-green-100 flex justify-center items-center gap-2">
-                            Simpan Transaksi
-                        </button>
-                    </div>
-                </div>
+                <button onclick="closeHistoryModal()" class="modal-close-btn text-slate-400 hover:text-slate-600 text-2xl">&times;</button>
             </div>
             
-            <div class="lg:col-span-2 bg-white p-8 rounded-2xl shadow-sm border border-slate-100 flex flex-col items-center">
-                <div class="w-full flex justify-between items-center mb-6">
-                    <h3 class="text-slate-800 font-extrabold flex items-center gap-2">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-[#FFCC00]" viewBox="0 0 20 20" fill="currentColor"><path d="M2 11a1 1 0 011-1h2a1 1 0 011 1v5a1 1 0 01-1 1H3a1 1 0 01-1-1v-5zM8 7a1 1 0 011-1h2a1 1 0 011 1v9a1 1 0 01-1 1H9a1 1 0 01-1-1V7zM14 4a1 1 0 011-1h2a1 1 0 011 1v12a1 1 0 01-1 1h-2a1 1 0 01-1-1V4z" /></svg>
-                        Grafik Ringkasan
+            <div class="p-6 overflow-hidden flex-1 flex flex-col" id="printArea">
+                <div id="historyHeader"></div>
+                <h4 class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3 no-print">Daftar Aktivitas</h4>
+                
+                <div id="historyList" class="history-scroll-area space-y-2 no-print"></div>
+                
+                <table id="historyTablePrint" class="w-full text-sm">
+                    <thead>
+                        <tr>
+                            <th class="text-left" style="width: 10%;">No</th>
+                            <th class="text-left" style="width: 40%;">Tanggal</th>
+                            <th class="text-left" style="width: 20%;">Tipe</th>
+                            <th class="text-right">Nominal (Rp)</th>
+                        </tr>
+                    </thead>
+                    <tbody id="historyTableBodyPrint"></tbody>
+                </table>
+
+                <div class="hidden print:block print-footer mt-10">
+                    <div class="flex justify-between text-center">
+                        <div class="w-48">
+                            <p class="mb-20 font-bold">Penerima,</p>
+                            <p class="border-t border-black pt-1 font-bold">( ............................ )</p>
+                        </div>
+                        <div class="w-48">
+                            <p class="mb-20 font-bold">Bendahara,</p>
+                            <p class="border-t border-black pt-1 font-bold">( ............................ )</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="p-5 border-t border-slate-100 bg-slate-50 flex gap-3 no-print">
+                <button onclick="printHistory()" class="flex-1 bg-slate-900 text-white py-3 rounded-xl font-bold hover:bg-black transition flex items-center justify-center gap-2">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" stroke-width="2"></path></svg>
+                    Cetak Riwayat
+                </button>
+                <button onclick="closeHistoryModal()" class="flex-1 bg-white border border-slate-200 text-slate-600 py-3 rounded-xl font-bold hover:bg-slate-100 transition">Tutup</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="max-w-6xl mx-auto">
+        <div class="flex flex-col md:flex-row md:items-center justify-between mb-8 gap-4">
+            <div>
+                <h1 class="text-3xl font-extrabold text-slate-900">Rekap Kasbon Non Anggota</h1>
+                <p id="subHeader" class="text-slate-500">Laporan Keuangan Tahun Buku 2024</p>
+            </div>
+            <div class="flex gap-3">
+                <div class="glass-card p-4 px-6 text-right border-l-4 border-l-rose-500">
+                    <p class="text-[10px] font-bold text-slate-400 uppercase">Piutang Aktif</p>
+                    <p id="total-unpaid" class="text-xl font-black text-rose-600">Rp 0</p>
+                </div>
+                <div class="glass-card p-4 px-6 text-right bg-indigo-600 text-white border-none">
+                    <p class="text-[10px] font-bold opacity-60 uppercase">Total Keseluruhan</p>
+                    <p id="total-overall" class="text-xl font-black">Rp 0</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="no-print grid grid-cols-1 lg:grid-cols-12 gap-6 mb-8">
+            <div class="lg:col-span-4">
+                <div id="mainFormContainer" class="glass-card p-6 border-t-4 border-t-indigo-500">
+                    <h3 id="labelForm" class="font-bold text-slate-800 mb-4 flex items-center gap-2">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M12 4v16m8-8H4" stroke-width="2.5"></path></svg>
+                        Input Data Pinjaman
                     </h3>
-                    <span class="text-[10px] font-bold text-[#009B4D] bg-[#009B4D]/10 px-2 py-1 rounded-md">UPDATE OTOMATIS</span>
+                    <form id="dataForm" class="space-y-3">
+                        <input type="hidden" id="editIndex" value="-1">
+                        <input type="text" id="inputNama" placeholder="Nama Lengkap" class="w-full p-3 bg-slate-50 border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-indigo-500" required>
+                        <input type="text" id="inputKet" placeholder="Keterangan Pinjaman" class="w-full p-3 bg-slate-50 border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-indigo-500" required>
+                        <div class="grid grid-cols-2 gap-2">
+                            <input type="date" id="inputTgl" class="w-full p-3 bg-slate-50 border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-indigo-500" required>
+                            <select id="inputStatus" class="w-full p-3 bg-slate-50 border border-slate-200 rounded-lg outline-none">
+                                <option value="Belum Lunas">Belum Lunas</option>
+                                <option value="Lunas">Lunas</option>
+                            </select>
+                        </div>
+                        <input type="number" id="inputJumlah" placeholder="Nominal Pinjaman (Rp)" class="w-full p-3 bg-slate-50 border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-indigo-500 font-bold" required>
+                        <div class="flex gap-2 pt-2">
+                            <button type="submit" id="btnSubmit" class="flex-1 bg-indigo-600 text-white py-3 rounded-lg font-bold hover:bg-indigo-700 transition shadow-lg shadow-indigo-200">Simpan</button>
+                            <button type="button" onclick="resetForm()" id="btnCancel" class="hidden flex-1 bg-slate-100 text-slate-500 py-3 rounded-lg font-bold">Batal</button>
+                        </div>
+                    </form>
+                    <p class="text-[9px] text-slate-400 mt-3 italic">*Jika nama sudah ada, nominal akan otomatis ditambahkan ke saldo piutang orang tersebut.</p>
                 </div>
-                <div class="w-full h-full min-h-[320px]">
-                    <canvas id="debtChart"></canvas>
+
+                <div id="paymentFormContainer" class="glass-card p-6 bg-emerald-50 border-emerald-200 hidden">
+                    <h3 class="font-bold text-emerald-800 mb-1">Input Pembayaran</h3>
+                    <p id="payTargetName" class="text-[10px] font-medium text-emerald-600 mb-4 uppercase tracking-wider"></p>
+                    <div class="space-y-3">
+                        <input type="date" id="inputBayarTgl" class="w-full p-3 border border-emerald-200 rounded-lg outline-none">
+                        <input type="number" id="inputBayarNominal" placeholder="Rp 0" class="w-full p-3 border border-emerald-300 rounded-lg outline-none font-bold text-emerald-700">
+                    </div>
+                    <div class="flex gap-2 mt-4">
+                        <button onclick="processPayment()" class="flex-1 bg-emerald-600 text-white py-3 rounded-lg font-bold shadow-lg shadow-emerald-200">Bayar</button>
+                        <button onclick="closePaymentForm()" class="px-4 bg-white text-emerald-600 border border-emerald-200 rounded-lg font-bold">Batal</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="lg:col-span-5">
+                <div class="glass-card p-6 h-full flex flex-col">
+                    <h3 class="font-bold text-slate-800 mb-4">Distribusi Piutang</h3>
+                    <div class="flex-1 flex items-center justify-center relative">
+                        <canvas id="debtChart"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <div class="lg:col-span-3">
+                <div class="glass-card p-6 h-full flex flex-col gap-3">
+                    <h3 class="font-bold text-slate-800 mb-2 flex items-center gap-2">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" stroke-width="2"></path></svg>
+                        Opsi Data
+                    </h3>
+                    <button onclick="window.print()" class="w-full bg-slate-900 text-white py-3 rounded-lg font-bold hover:bg-black transition flex items-center justify-center gap-2">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" stroke-width="2"></path></svg>
+                        Cetak Laporan
+                    </button>
+                    <div class="grid grid-cols-2 gap-2">
+                        <button onclick="exportData()" class="border border-slate-200 text-slate-600 py-3 rounded-lg font-bold hover:bg-slate-50 transition text-sm">Ekspor JSON</button>
+                        <label class="border border-slate-200 text-slate-600 py-3 rounded-lg font-bold hover:bg-slate-50 transition text-center cursor-pointer text-sm">
+                            Impor JSON
+                            <input type="file" id="importFile" class="hidden" onchange="importData(event)">
+                        </label>
+                    </div>
                 </div>
             </div>
         </div>
 
-        <!-- Table List -->
-        <div class="bg-white rounded-[2rem] shadow-sm border border-slate-200 overflow-hidden no-print">
-            <div class="p-8 border-b border-slate-50 flex flex-col md:flex-row justify-between items-center gap-4 bg-slate-50/30">
-                <div>
-                    <h2 class="font-black text-xl text-slate-800">Daftar Tagihan Pelanggan</h2>
-                    <p class="text-xs text-slate-400 mt-1">Kelola status dan pembayaran secara real-time</p>
-                </div>
-                <div class="flex items-center gap-2 bg-white px-4 py-2 rounded-full border border-slate-100 shadow-sm">
-                    <div class="w-3 h-3 bg-[#009B4D] rounded-full animate-pulse"></div>
-                    <span id="activeCountText" class="text-xs font-bold text-slate-500 uppercase tracking-tighter">0 Pelanggan Aktif</span>
-                </div>
-            </div>
+        <div class="no-print glass-card p-2 mb-6 flex items-center px-4 focus-within:ring-2 focus-within:ring-indigo-200 transition">
+            <svg class="w-5 h-5 text-slate-400 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" stroke-width="2"></path></svg>
+            <input type="text" id="searchInput" onkeyup="renderTable()" placeholder="Cari nama peminjam..." class="w-full p-2 outline-none bg-transparent text-sm">
+        </div>
+
+        <div class="glass-card overflow-hidden">
             <div class="overflow-x-auto">
-                <table class="w-full text-left">
-                    <thead>
-                        <tr class="bg-slate-50/80 text-slate-400 text-[10px] font-bold uppercase tracking-[0.2em]">
-                            <th class="px-8 py-5">Nama Pelanggan</th>
-                            <th class="px-4 py-5 text-center">Status</th>
-                            <th class="px-4 py-5 text-right">Sisa Tagihan</th>
-                            <th class="px-8 py-5 text-center">Aksi</th>
+                <table class="w-full text-left" id="printableTable">
+                    <thead class="bg-slate-50 border-b border-slate-100">
+                        <tr>
+                            <th class="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Peminjam</th>
+                            <th class="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Keterangan</th>
+                            <th class="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Status</th>
+                            <th class="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest text-right">Sisa Tagihan</th>
+                            <th class="no-print px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest text-center">Aksi</th>
                         </tr>
                     </thead>
-                    <tbody id="debtTableBody" class="divide-y divide-slate-50"></tbody>
+                    <tbody id="tableBody" class="divide-y divide-slate-100"></tbody>
                 </table>
             </div>
         </div>
-    </main>
 
-    <!-- Modal Master Barang -->
-    <div id="productModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden items-center justify-center p-4 z-50 no-print">
-        <div class="bg-white rounded-[2.5rem] max-w-2xl w-full max-h-[85vh] flex flex-col shadow-2xl modal-animate border-t-8 border-[#009B4D]">
-            <div class="p-8 border-b border-slate-50 flex justify-between items-center">
-                <h2 class="text-2xl font-black text-slate-800">Master Barang</h2>
-                <button onclick="closeProductManager()" class="p-2 bg-slate-100 text-slate-400 hover:text-red-500 rounded-full transition">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
-                </button>
-            </div>
-            <div class="p-8 bg-slate-50/50 space-y-3">
-                <div class="grid grid-cols-2 gap-2">
-                    <input type="text" id="newProductName" placeholder="Nama Barang..." class="px-5 py-3 rounded-2xl border-2 border-slate-200 focus:border-[#009B4D] outline-none shadow-inner">
-                    <input type="number" id="newProductPrice" placeholder="Harga Jual..." class="px-5 py-3 rounded-2xl border-2 border-slate-200 focus:border-[#009B4D] outline-none shadow-inner font-bold">
+        <div class="hidden print:block print-footer">
+            <div class="flex justify-between text-center">
+                <div class="w-64">
+                    <p class="mb-24 font-bold">Bendahara,</p>
+                    <p class="border-t border-black pt-2 font-bold">( ............................ )</p>
                 </div>
-                <button onclick="registerNewProduct()" class="w-full py-3 bg-[#009B4D] text-white rounded-2xl font-bold hover:bg-[#007a3d] transition shadow-lg shadow-green-100">Tambah ke Daftar</button>
+                <div class="w-64">
+                    <p class="mb-24 font-bold">Penerima,</p>
+                    <p class="border-t border-black pt-2 font-bold">( ............................ )</p>
+                </div>
             </div>
-            <div class="p-6 overflow-y-auto flex-grow custom-scrollbar">
-                <div id="productList" class="grid grid-cols-1 gap-2"></div>
+            <div class="flex justify-between items-end mt-10">
+                <p class="text-[10px] text-slate-400 italic">Dicetak pada: <span id="printTimestamp"></span></p>
+                <p class="text-[10px] text-slate-400 font-bold uppercase">Halaman 1 dari 1</p>
             </div>
         </div>
-    </div>
-
-    <!-- Modal Pelanggan -->
-    <div id="customerModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden items-center justify-center p-4 z-50 no-print">
-        <div class="bg-white rounded-[2.5rem] max-w-2xl w-full max-h-[85vh] flex flex-col shadow-2xl modal-animate border-t-8 border-[#009B4D]">
-            <div class="p-8 border-b border-slate-50 flex justify-between items-center">
-                <h2 class="text-2xl font-black text-slate-800">Kelola Pelanggan</h2>
-                <button onclick="closeCustomerManager()" class="p-2 bg-slate-100 text-slate-400 hover:text-red-500 rounded-full transition">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
-                </button>
-            </div>
-            <div class="p-8 bg-slate-50/50">
-                <div class="flex gap-2">
-                    <input type="text" id="newCustomerName" placeholder="Nama Pelanggan Baru..." class="flex-grow px-5 py-3 rounded-2xl border-2 border-slate-200 focus:border-[#009B4D] outline-none shadow-inner">
-                    <button onclick="registerNewCustomer()" class="px-8 bg-[#009B4D] text-white rounded-2xl font-bold hover:bg-[#007a3d] transition shadow-lg shadow-green-100">Daftar</button>
-                </div>
-            </div>
-            <div class="p-6 overflow-y-auto flex-grow custom-scrollbar">
-                <div id="customerList" class="grid grid-cols-1 md:grid-cols-2 gap-3"></div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Modal Detail Nota -->
-    <div id="detailModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden items-center justify-center p-4 z-50 no-print">
-        <div class="bg-white rounded-[2.5rem] max-w-3xl w-full max-h-[90vh] flex flex-col shadow-2xl modal-animate border-t-8 border-[#FFCC00]">
-            <div class="p-8 flex justify-between items-start">
-                <div>
-                    <h2 id="detailTitle" class="text-2xl font-black text-slate-800">Rincian Nota</h2>
-                    <p id="detailSubtitle" class="text-sm text-slate-400 font-medium"></p>
-                </div>
-                <button onclick="closeDetailModal()" class="p-2 bg-slate-50 text-slate-400 rounded-full hover:bg-slate-100 transition">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
-                </button>
-            </div>
-            <div class="px-8 overflow-y-auto flex-grow">
-                <table class="w-full text-sm">
-                    <thead>
-                        <tr class="text-left text-slate-400 border-b border-slate-100 uppercase tracking-widest text-[10px]">
-                            <th class="pb-4 font-bold">Tanggal</th>
-                            <th class="pb-4 font-bold">Item</th>
-                            <th class="pb-4 font-bold text-center">Qty</th>
-                            <th class="pb-4 font-bold text-right">Subtotal</th>
-                        </tr>
-                    </thead>
-                    <tbody id="detailTableBody" class="divide-y divide-slate-50"></tbody>
-                </table>
-            </div>
-            <div class="p-8 mt-4 bg-slate-50 flex justify-between items-center rounded-b-[2.5rem]">
-                <div>
-                    <p class="text-[10px] font-bold text-slate-400 uppercase mb-1">Total Saldo Tagihan</p>
-                    <p id="detailTotalBalance" class="text-2xl font-black text-red-600"></p>
-                </div>
-                <button onclick="closeDetailModal()" class="px-10 py-3 bg-[#009B4D] text-white rounded-2xl font-bold shadow-lg shadow-green-100 hover:scale-105 transition">Selesai</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- Notification Toast -->
-    <div id="toast" class="fixed bottom-10 left-1/2 -translate-x-1/2 bg-slate-900 text-white px-8 py-4 rounded-2xl shadow-2xl transition-all translate-y-20 opacity-0 z-[100] flex items-center gap-3">
-        <div class="bg-[#009B4D] p-1 rounded-full"><svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7" /></svg></div>
-        <span id="toastMsg" class="font-bold text-sm">Berhasil disimpan</span>
     </div>
 
     <script>
-        // State Management
-        let data = JSON.parse(localStorage.getItem('toko_utang_v3')) || { 
-            customers: [], 
-            records: [],
-            products: [] 
-        };
+        let dataHutang = JSON.parse(localStorage.getItem('kasbonDataV7')) || [];
+        let activePaymentIndex = -1;
         let myChart = null;
 
-        window.onload = () => {
-            document.getElementById('transDate').valueAsDate = new Date();
-            refreshUI();
+        function saveAndRefresh() {
+            localStorage.setItem('kasbonDataV7', JSON.stringify(dataHutang));
+            renderTable();
+            updateChart();
+        }
+
+        const form = document.getElementById('dataForm');
+        form.onsubmit = (e) => {
+            e.preventDefault();
+            const editIndex = parseInt(document.getElementById('editIndex').value);
+            const inputNama = document.getElementById('inputNama').value.trim();
+            const inputNominal = parseInt(document.getElementById('inputJumlah').value);
+            const inputTgl = document.getElementById('inputTgl').value;
+            const inputKet = document.getElementById('inputKet').value;
+
+            const dateParts = inputTgl.split('-');
+            const formattedDate = `${dateParts[2]}/${dateParts[1]}/${dateParts[0]}`;
+
+            const existingIndex = dataHutang.findIndex(item => item.nama.toLowerCase() === inputNama.toLowerCase());
+
+            if (editIndex === -1 && existingIndex > -1) {
+                const target = dataHutang[existingIndex];
+                target.nominalAwal = (target.nominalAwal || target.jumlah) + inputNominal;
+                target.jumlah += inputNominal;
+                target.status = "Belum Lunas";
+                if (!target.history) target.history = [];
+                target.history.push({ 
+                    tgl: formattedDate, 
+                    bayar: inputNominal, 
+                    tipe: 'Peminjaman' 
+                });
+                alert(`Nama "${inputNama}" ditemukan. Nominal ditambahkan ke saldo piutang.`);
+            } 
+            else if (editIndex > -1) {
+                dataHutang[editIndex].nama = inputNama;
+                dataHutang[editIndex].ket = inputKet;
+                dataHutang[editIndex].tanggal = inputTgl;
+                dataHutang[editIndex].jumlah = inputNominal;
+                dataHutang[editIndex].status = document.getElementById('inputStatus').value;
+            } 
+            else {
+                const newData = {
+                    nama: inputNama,
+                    ket: inputKet,
+                    tanggal: inputTgl,
+                    jumlah: inputNominal,
+                    status: document.getElementById('inputStatus').value,
+                    nominalAwal: inputNominal,
+                    history: [{ tgl: formattedDate, bayar: inputNominal, tipe: 'Peminjaman' }]
+                };
+                dataHutang.push(newData);
+            }
+
+            saveAndRefresh();
+            resetForm();
         };
 
-        function showToast(msg) {
-            const t = document.getElementById('toast');
-            document.getElementById('toastMsg').innerText = msg;
-            t.classList.remove('translate-y-20', 'opacity-0');
-            setTimeout(() => t.classList.add('translate-y-20', 'opacity-0'), 3000);
+        function resetForm() {
+            form.reset();
+            document.getElementById('editIndex').value = "-1";
+            document.getElementById('labelForm').innerHTML = `<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M12 4v16m8-8H4" stroke-width="2.5"></path></svg> Input Data Pinjaman`;
+            document.getElementById('btnSubmit').innerText = "Simpan";
+            document.getElementById('btnCancel').classList.add('hidden');
         }
 
-        function formatIDR(num) {
-            return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(num);
-        }
-
-        function save() { localStorage.setItem('toko_utang_v3', JSON.stringify(data)); }
-
-        function refreshUI() {
-            renderTable();
-            updateStats();
-            updateSuggestions();
-            updateProductSelector();
-        }
-
-        // --- CALCULATION LOGIC ---
-        function calculateTotal() {
-            const qty = parseInt(document.getElementById('itemQty').value) || 0;
-            const price = parseFloat(document.getElementById('itemPrice').value) || 0;
-            const total = qty * price;
-            document.getElementById('totalDisplay').innerText = `Total: ${formatIDR(total)}`;
-        }
-
-        // --- CUSTOMER MANAGEMENT ---
-        function openCustomerManager() {
-            renderCustomerList();
-            document.getElementById('customerModal').classList.replace('hidden', 'flex');
-        }
-
-        function closeCustomerManager() {
-            document.getElementById('customerModal').classList.replace('flex', 'hidden');
-        }
-
-        function registerNewCustomer() {
-            const name = document.getElementById('newCustomerName').value.trim();
-            if (!name || data.customers.includes(name)) return;
-            data.customers.push(name);
-            data.customers.sort();
-            document.getElementById('newCustomerName').value = '';
-            save(); renderCustomerList(); updateSuggestions();
-            showToast("Pelanggan baru terdaftar");
-        }
-
-        function renderCustomerList() {
-            const list = document.getElementById('customerList');
-            list.innerHTML = data.customers.map(name => `
-                <div class="flex justify-between items-center p-4 bg-white border-2 border-slate-50 rounded-2xl hover:border-[#009B4D]/20 transition group">
-                    <span class="font-bold text-slate-700">${name}</span>
-                    <button onclick="deleteCustomer('${name}')" class="text-slate-200 hover:text-red-500 transition">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
-                    </button>
-                </div>
-            `).join('');
-        }
-
-        function deleteCustomer(name) {
-            if (confirm(`Hapus ${name}? Semua data hutang orang ini TIDAK akan hilang, hanya namanya yang dihapus dari daftar saran.`)) {
-                data.customers = data.customers.filter(c => c !== name);
-                save(); renderCustomerList(); updateSuggestions();
-            }
-        }
-
-        // --- PRODUCT MANAGEMENT ---
-        function openProductManager() {
-            renderProductList();
-            document.getElementById('productModal').classList.replace('hidden', 'flex');
-        }
-
-        function closeProductManager() {
-            document.getElementById('productModal').classList.replace('flex', 'hidden');
-        }
-
-        function registerNewProduct() {
-            const name = document.getElementById('newProductName').value.trim();
-            const price = parseFloat(document.getElementById('newProductPrice').value);
-            
-            if (!name || isNaN(price)) return showToast("Lengkapi nama & harga barang!");
-            
-            data.products.push({ id: Date.now(), name, price });
-            data.products.sort((a,b) => a.name.localeCompare(b.name));
-            
-            document.getElementById('newProductName').value = '';
-            document.getElementById('newProductPrice').value = '';
-            
-            save(); renderProductList(); updateProductSelector();
-            showToast("Barang ditambahkan!");
-        }
-
-        function renderProductList() {
-            const list = document.getElementById('productList');
-            list.innerHTML = data.products.map(p => `
-                <div class="flex justify-between items-center p-4 bg-slate-50 rounded-2xl border border-slate-100">
-                    <div>
-                        <p class="font-bold text-slate-800">${p.name}</p>
-                        <p class="text-xs text-[#009B4D] font-black">${formatIDR(p.price)}</p>
-                    </div>
-                    <button onclick="deleteProduct(${p.id})" class="text-slate-300 hover:text-red-500 transition">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
-                    </button>
-                </div>
-            `).join('');
-        }
-
-        function deleteProduct(id) {
-            data.products = data.products.filter(p => p.id !== id);
-            save(); renderProductList(); updateProductSelector();
-        }
-
-        function updateProductSelector() {
-            const selector = document.getElementById('itemSelector');
-            const productSuggestions = document.getElementById('productSuggestions');
-            const currentVal = selector.value;
-            
-            // Dropdown selector
-            selector.innerHTML = '<option value="">-- Pilih dari Master Barang --</option>' + 
-                data.products.map(p => `<option value="${p.id}">${p.name} - ${formatIDR(p.price)}</option>`).join('');
-            selector.value = currentVal;
-            
-            // Datalist for manual input
-            productSuggestions.innerHTML = data.products.map(p => `<option value="${p.name}">`).join('');
-        }
-
-        function autoFillPrice() {
-            const productId = document.getElementById('itemSelector').value;
-            if (!productId) return;
-            
-            const product = data.products.find(p => p.id == productId);
-            if (product) {
-                document.getElementById('itemName').value = product.name;
-                document.getElementById('itemPrice').value = product.price;
-                calculateTotal();
-            }
-        }
-
-        // FITUR BARU: Cari harga berdasarkan nama saat mengetik manual
-        function searchPriceByName() {
-            const nameInput = document.getElementById('itemName').value.trim().toLowerCase();
-            const product = data.products.find(p => p.name.toLowerCase() === nameInput);
-            
-            if (product) {
-                document.getElementById('itemPrice').value = product.price;
-            }
-            calculateTotal();
-        }
-
-        // --- TRANSACTION LOGIC ---
-        function updateSuggestions() {
-            const dl = document.getElementById('customerSuggestions');
-            dl.innerHTML = data.customers.map(c => `<option value="${c}">`).join('');
-        }
-
-        function tambahUtang() {
-            const name = document.getElementById('custName').value.trim();
-            const date = document.getElementById('transDate').value;
-            const item = document.getElementById('itemName').value.trim();
-            const qty = parseInt(document.getElementById('itemQty').value) || 1;
-            const price = parseFloat(document.getElementById('itemPrice').value);
-
-            if (!name || !item || isNaN(price)) return showToast("Lengkapi data transaksi!");
-
-            const total = price * qty;
-            const displayDate = date ? new Date(date).toLocaleDateString('id-ID') : new Date().toLocaleDateString('id-ID');
-
-            let record = data.records.find(r => r.name.toLowerCase() === name.toLowerCase());
-
-            const historyEntry = { date: displayDate, amount: total, qty, pricePerUnit: price, type: 'UTANG', detail: item };
-
-            if (record) {
-                record.balance += total;
-                record.history.push(historyEntry);
-            } else {
-                data.records.push({
-                    id: Date.now(),
-                    name: name,
-                    balance: total,
-                    createdAt: displayDate,
-                    history: [historyEntry]
-                });
-                if (!data.customers.includes(name)) {
-                    data.customers.push(name);
-                    data.customers.sort();
-                }
-            }
-
-            save(); refreshUI();
-            document.getElementById('itemName').value = '';
-            document.getElementById('itemPrice').value = '';
-            document.getElementById('itemQty').value = '1';
-            document.getElementById('itemSelector').value = '';
-            document.getElementById('totalDisplay').innerText = `Total: Rp 0`;
-            showToast("Transaksi berhasil dicatat!");
+        function formatRupiah(num) {
+            return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(num);
         }
 
         function renderTable() {
-            const tbody = document.getElementById('debtTableBody');
+            const tbody = document.getElementById('tableBody');
+            const search = document.getElementById('searchInput').value.toLowerCase();
+            let totalOverall = 0;
+            let totalUnpaid = 0;
+            
             tbody.innerHTML = '';
-            const activeRecs = data.records.filter(r => r.balance > 0).length;
-            document.getElementById('activeCountText').innerText = `${activeRecs} Pelanggan Aktif`;
+            dataHutang.forEach((item, index) => {
+                if (item.nama.toLowerCase().includes(search) || item.ket.toLowerCase().includes(search)) {
+                    totalOverall += (item.nominalAwal || item.jumlah);
+                    if(item.status !== "Lunas") totalUnpaid += item.jumlah;
 
-            data.records.sort((a,b) => b.balance - a.balance).forEach(r => {
-                const lunas = r.balance <= 0;
-                tbody.innerHTML += `
-                    <tr class="group hover:bg-[#FAF5E9]/50 transition cursor-pointer" onclick="openDetailModal(${r.id})">
-                        <td class="px-8 py-6">
-                            <div class="flex items-center gap-4">
-                                <div class="h-10 w-10 bg-[#009B4D] text-white flex items-center justify-center font-black rounded-xl shadow-sm">
-                                    ${r.name.charAt(0).toUpperCase()}
+                    const statusClass = item.status === 'Lunas' ? 'status-paid' : 'status-unpaid';
+                    
+                    tbody.innerHTML += `
+                        <tr class="hover:bg-slate-50 transition border-b border-slate-100">
+                            <td class="px-6 py-4">
+                                <p class="font-bold text-slate-800">${item.nama}</p>
+                                <p class="text-[10px] text-slate-400">${item.tanggal}</p>
+                            </td>
+                            <td class="px-6 py-4 text-sm text-slate-600">${item.ket}</td>
+                            <td class="px-6 py-4"><span class="status-pill ${statusClass}">${item.status}</span></td>
+                            <td class="px-6 py-4 text-right font-bold ${item.status === 'Lunas' ? 'text-slate-300' : 'text-slate-900'}">${formatRupiah(item.jumlah)}</td>
+                            <td class="no-print px-6 py-4">
+                                <div class="flex justify-center gap-1">
+                                    ${item.status !== 'Lunas' ? `<button onclick="openPayment(${index})" class="bg-emerald-500 text-white px-2 py-1 rounded text-[9px] font-bold">BAYAR</button>` : ''}
+                                    <button onclick="showHistory(${index})" class="bg-slate-100 text-slate-600 px-2 py-1 rounded text-[9px] font-bold">HISTORY</button>
+                                    <button onclick="editRow(${index})" class="text-indigo-600 p-1"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" stroke-width="2"></path></svg></button>
+                                    <button onclick="deleteRow(${index})" class="text-rose-600 p-1"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" stroke-width="2"></path></svg></button>
                                 </div>
-                                <div>
-                                    <p class="font-black text-slate-800 group-hover:text-[#009B4D] transition">${r.name}</p>
-                                    <p class="text-[10px] text-slate-400 font-bold uppercase tracking-tighter italic">Sejak ${r.createdAt}</p>
-                                </div>
-                            </div>
-                        </td>
-                        <td class="px-4 py-6 text-center">
-                            <span class="px-3 py-1 rounded-lg text-[10px] font-black tracking-widest ${lunas ? 'bg-emerald-100 text-emerald-600' : 'bg-[#FFCC00]/20 text-[#009B4D]'}">
-                                ${lunas ? 'LUNAS' : 'AKTIF'}
-                            </span>
-                        </td>
-                        <td class="px-4 py-6 text-right font-black text-lg ${lunas ? 'text-emerald-500' : 'text-red-500'}">${formatIDR(r.balance)}</td>
-                        <td class="px-8 py-6" onclick="event.stopPropagation()">
-                            <div class="flex justify-center gap-2">
-                                ${!lunas ? `
-                                <button onclick="openPayModal(${r.id})" class="p-2.5 bg-[#009B4D] text-white rounded-xl shadow-md hover:scale-110 transition">
-                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path d="M4 4a2 2 0 00-2 2v1h16V6a2 2 0 00-2-2H4z" /><path fill-rule="evenodd" d="M18 9H2v5a2 2 0 002 2h12a2 2 0 002-2V9zM4 13a1 1 0 011-1h1a1 1 0 110 2H5a1 1 0 01-1-1zm5-1a1 1 0 100 2h1a1 1 0 100-2H9z" clip-rule="evenodd" /></svg>
-                                </button>` : ''}
-                                <button onclick="downloadPDF(${r.id})" class="p-2.5 bg-white border border-slate-200 text-slate-400 hover:text-[#009B4D] rounded-xl hover:bg-slate-50 transition">
-                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
-                                </button>
-                                <button onclick="hapusRecord(${r.id})" class="p-2.5 text-slate-200 hover:text-red-500 transition">
-                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
-                                </button>
-                            </div>
-                        </td>
-                    </tr>
-                `;
+                            </td>
+                        </tr>
+                    `;
+                }
             });
+
+            document.getElementById('total-overall').innerText = formatRupiah(totalOverall);
+            document.getElementById('total-unpaid').innerText = formatRupiah(totalUnpaid);
+            document.getElementById('printTimestamp').innerText = new Date().toLocaleString('id-ID');
         }
 
-        function openDetailModal(id) {
-            const r = data.records.find(x => x.id === id);
-            document.getElementById('detailTitle').innerText = r.name;
-            document.getElementById('detailSubtitle').innerText = `Riwayat pengambilan barang dan pelunasan nota.`;
-            document.getElementById('detailTotalBalance').innerText = formatIDR(r.balance);
-            
-            const tbody = document.getElementById('detailTableBody');
-            tbody.innerHTML = r.history.map(h => {
-                const utang = h.type === 'UTANG';
-                return `
-                    <tr class="hover:bg-slate-50 transition">
-                        <td class="py-4 text-slate-400 text-[11px] font-bold">${h.date}</td>
-                        <td class="py-4">
-                            <p class="font-bold text-slate-800">${h.detail}</p>
-                            ${utang ? `<p class="text-[10px] text-slate-400 font-medium">@ ${formatIDR(h.pricePerUnit)}</p>` : ''}
-                        </td>
-                        <td class="py-4 text-center font-bold text-slate-500">${h.qty || '-'}</td>
-                        <td class="py-4 text-right font-black ${utang ? 'text-red-500' : 'text-emerald-500'}">
-                            ${utang ? '+' : '-'}${formatIDR(h.amount).replace('Rp', '').trim()}
-                        </td>
-                    </tr>
-                `;
-            }).join('');
-
-            document.getElementById('detailModal').classList.replace('hidden', 'flex');
-        }
-
-        function closeDetailModal() { document.getElementById('detailModal').classList.replace('flex', 'hidden'); }
-
-        function openPayModal(id) {
-            const r = data.records.find(x => x.id === id);
-            const val = prompt(`Masukkan jumlah bayar untuk ${r.name} (Tagihan: ${formatIDR(r.balance)})`);
-            const pay = parseFloat(val);
-            if (!isNaN(pay) && pay > 0) {
-                if (pay > r.balance) return alert("Pembayaran melebihi utang!");
-                r.balance -= pay;
-                r.history.push({
-                    date: new Date().toLocaleDateString('id-ID'),
-                    amount: pay,
-                    type: 'BAYAR',
-                    detail: 'Pembayaran Piutang',
-                    qty: 1
-                });
-                save(); refreshUI(); showToast("Pembayaran berhasil!");
-            }
-        }
-
-        function hapusRecord(id) {
-            if (confirm("Hapus seluruh catatan orang ini secara permanen?")) {
-                data.records = data.records.filter(r => r.id !== id);
-                save(); refreshUI(); showToast("Catatan dihapus.");
-            }
-        }
-
-        function updateStats() {
-            const utang = data.records.reduce((acc, r) => acc + r.balance, 0);
-            const terbayar = data.records.reduce((acc, r) => {
-                return acc + r.history.filter(h => h.type === 'BAYAR').reduce((a, b) => a + b.amount, 0);
-            }, 0);
-            
-            document.getElementById('totalPiutang').innerText = formatIDR(utang);
-
+        function updateChart() {
             const ctx = document.getElementById('debtChart').getContext('2d');
+            const active = dataHutang.filter(d => d.jumlah > 0);
             if (myChart) myChart.destroy();
+            
+            if (active.length === 0) {
+                ctx.font = "14px Plus Jakarta Sans";
+                ctx.textAlign = "center";
+                ctx.fillText("Tidak ada data pinjaman aktif", ctx.canvas.width/2, ctx.canvas.height/2);
+                return;
+            }
+
             myChart = new Chart(ctx, {
                 type: 'doughnut',
                 data: {
-                    labels: ['Sisa Piutang', 'Total Terbayar'],
+                    labels: active.map(d => d.nama),
                     datasets: [{
-                        data: [utang, terbayar],
-                        backgroundColor: ['#ef4444', '#009B4D'],
-                        borderWidth: 6,
-                        borderColor: '#ffffff',
+                        data: active.map(d => d.jumlah),
+                        backgroundColor: ['#4f46e5', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4'],
+                        borderWidth: 0,
                         hoverOffset: 10
                     }]
                 },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: { 
-                        legend: { position: 'bottom', labels: { font: { weight: 'bold', family: 'sans-serif' }, padding: 25, usePointStyle: true } } 
-                    },
-                    cutout: '70%'
+                options: { 
+                    responsive: true, 
+                    maintainAspectRatio: false, 
+                    cutout: '75%', 
+                    plugins: { legend: { display: false } } 
                 }
             });
         }
 
-        async function downloadPDF(id) {
-            const { jsPDF } = window.jspdf;
-            const doc = new jsPDF();
-            const r = data.records.find(x => x.id === id);
-            
-            doc.setFillColor(0, 155, 77); // #009B4D
-            doc.rect(0, 0, 210, 30, 'F');
-            doc.setTextColor(255, 255, 255);
-            doc.setFontSize(18);
-            doc.text(`NOTA TAGIHAN: ${r.name.toUpperCase()}`, 15, 20);
-            
-            doc.setTextColor(40, 40, 40);
-            doc.setFontSize(10);
-            doc.text(`Waktu Cetak: ${new Date().toLocaleString('id-ID')}`, 15, 40);
-            doc.setFont(undefined, 'bold');
-            doc.text(`SISA TAGIHAN AKHIR: ${formatIDR(r.balance)}`, 15, 48);
-
-            doc.autoTable({
-                startY: 55,
-                head: [['Tanggal', 'Tipe', 'Keterangan', 'Qty', 'Harga Satuan', 'Jumlah']],
-                body: r.history.map(h => [
-                    h.date, 
-                    h.type === 'UTANG' ? 'AMBIL' : 'BAYAR', 
-                    h.detail, 
-                    h.qty || '-',
-                    h.type === 'UTANG' ? formatIDR(h.pricePerUnit) : '-',
-                    formatIDR(h.amount)
-                ]),
-                headStyles: { fillColor: [0, 155, 77] },
-                columnStyles: {
-                    3: { halign: 'center' },
-                    4: { halign: 'right' },
-                    5: { halign: 'right' }
-                }
-            });
-
-            doc.save(`Nota_${r.name}.pdf`);
+        function openPayment(index) {
+            activePaymentIndex = index;
+            document.getElementById('payTargetName').innerText = "Angsuran: " + dataHutang[index].nama;
+            document.getElementById('paymentFormContainer').classList.remove('hidden');
+            document.getElementById('mainFormContainer').classList.add('hidden');
+            document.getElementById('inputBayarTgl').value = new Date().toISOString().split('T')[0];
         }
 
-        // --- BACKUP & RESTORE ---
+        function closePaymentForm() {
+            document.getElementById('paymentFormContainer').classList.add('hidden');
+            document.getElementById('mainFormContainer').classList.remove('hidden');
+            activePaymentIndex = -1;
+        }
+
+        function processPayment() {
+            const nominal = parseInt(document.getElementById('inputBayarNominal').value);
+            const tglBayar = document.getElementById('inputBayarTgl').value;
+            if (!nominal || nominal <= 0) return;
+            
+            const item = dataHutang[activePaymentIndex];
+            if(!item.history) item.history = [];
+            
+            const dateParts = tglBayar.split('-');
+            const formattedDate = `${dateParts[2]}/${dateParts[1]}/${dateParts[0]}`;
+            
+            item.history.push({ tgl: formattedDate, bayar: nominal, tipe: 'Pembayaran' });
+            item.jumlah -= nominal;
+            
+            if (item.jumlah <= 0) {
+                item.jumlah = 0;
+                item.status = "Lunas";
+            }
+            
+            saveAndRefresh();
+            closePaymentForm();
+            document.getElementById('inputBayarNominal').value = '';
+        }
+
+        function showHistory(index) {
+            const item = dataHutang[index];
+            const header = document.getElementById('historyHeader');
+            const list = document.getElementById('historyList');
+            const printTableBody = document.getElementById('historyTableBodyPrint');
+            const nominalAwal = item.nominalAwal || item.jumlah;
+            
+            header.innerHTML = `
+                <div class="mb-6">
+                    <h2 class="text-2xl font-black text-slate-900 mb-1">${item.nama}</h2>
+                    <p class="text-sm text-slate-500">${item.ket}</p>
+                    <div class="grid grid-cols-2 gap-4 mt-6 p-4 bg-slate-50 rounded-xl border border-slate-100 print:bg-transparent print:border-none print:p-0">
+                        <div>
+                            <p class="text-[9px] font-bold text-slate-400 uppercase">Total Pinjaman</p>
+                            <p class="font-bold text-slate-800">${formatRupiah(nominalAwal)}</p>
+                        </div>
+                        <div class="text-right">
+                            <p class="text-[9px] font-bold text-slate-400 uppercase">Sisa Tagihan</p>
+                            <p class="font-bold text-rose-600 print:text-black">${formatRupiah(item.jumlah)}</p>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            list.innerHTML = '';
+            printTableBody.innerHTML = '';
+
+            if (!item.history || item.history.length === 0) {
+                list.innerHTML = `<div class="text-center py-12"><p class="text-slate-400 text-sm italic">Belum ada catatan.</p></div>`;
+            } else {
+                item.history.forEach((h, i) => {
+                    const isPayment = h.tipe === 'Pembayaran' || h.tipe === 'Angsuran';
+                    const label = isPayment ? 'BAYAR' : 'PINJAMAN';
+                    const iconBg = isPayment ? 'bg-emerald-100 text-emerald-600' : 'bg-rose-100 text-rose-600';
+                    const sign = isPayment ? '' : '- ';
+                    const colorClass = isPayment ? 'text-emerald-600' : 'text-rose-600';
+
+                    list.innerHTML += `
+                        <div class="flex justify-between items-center p-3 bg-white border border-slate-100 rounded-xl hover:shadow-sm transition">
+                            <div class="flex items-center gap-3">
+                                <span class="w-16 h-8 flex items-center justify-center ${iconBg} rounded text-[10px] font-bold tracking-tight">${label}</span>
+                                <div>
+                                    <p class="text-slate-800 font-bold text-sm">${h.tgl}</p>
+                                    <p class="text-slate-400 text-[10px]">${isPayment ? 'Uang Masuk' : 'Uang Keluar'}</p>
+                                </div>
+                            </div>
+                            <span class="font-bold ${colorClass}">${sign}${formatRupiah(h.bayar)}</span>
+                        </div>
+                    `;
+                    printTableBody.innerHTML += `
+                        <tr>
+                            <td>${i+1}</td>
+                            <td>${h.tgl}</td>
+                            <td class="${colorClass} font-bold">${label}</td>
+                            <td class="text-right font-bold ${colorClass}">${sign}${formatRupiah(h.bayar)}</td>
+                        </tr>
+                    `;
+                });
+            }
+            
+            document.getElementById('historyModal').style.display = 'flex';
+            list.scrollTop = 0;
+        }
+
+        function closeHistoryModal() { 
+            document.getElementById('historyModal').style.display = 'none'; 
+        }
+
+        function printHistory() { window.print(); }
+
+        function editRow(index) {
+            const item = dataHutang[index];
+            document.getElementById('editIndex').value = index;
+            document.getElementById('inputNama').value = item.nama;
+            document.getElementById('inputKet').value = item.ket;
+            document.getElementById('inputTgl').value = item.tanggal;
+            document.getElementById('inputJumlah').value = item.jumlah;
+            document.getElementById('inputStatus').value = item.status;
+            document.getElementById('labelForm').innerText = "Edit: " + item.nama;
+            document.getElementById('btnSubmit').innerText = "Update Data";
+            document.getElementById('btnCancel').classList.remove('hidden');
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        function deleteRow(index) {
+            if (confirm('Data ini akan dihapus permanen. Lanjutkan?')) {
+                dataHutang.splice(index, 1);
+                saveAndRefresh();
+            }
+        }
+
         function exportData() {
-            const blob = new Blob([JSON.stringify(data)], { type: 'application/json' });
-            const a = document.createElement('a');
-            a.href = URL.createObjectURL(blob);
-            a.download = `Backup_Toko_${new Date().toISOString().split('T')[0]}.json`;
-            a.click();
-            showToast("Backup berhasil diunduh");
+            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(dataHutang));
+            const downloadAnchorNode = document.createElement('a');
+            downloadAnchorNode.setAttribute("href", dataStr);
+            downloadAnchorNode.setAttribute("download", "rekap_piutang_" + new Date().toISOString().slice(0,10) + ".json");
+            downloadAnchorNode.click();
+            downloadAnchorNode.remove();
         }
 
         function importData(event) {
-            const file = event.target.files[0];
-            if (!file) return;
-
             const reader = new FileReader();
             reader.onload = (e) => {
                 try {
-                    const imported = JSON.parse(e.target.result);
-                    if (confirm("Apakah Anda yakin ingin menimpa data saat ini dengan data dari file backup?")) {
-                        data = imported;
-                        save();
-                        refreshUI();
-                        showToast("Data berhasil dimuat!");
-                    }
-                } catch (err) {
-                    alert("File tidak valid!");
-                }
+                    dataHutang = JSON.parse(e.target.result);
+                    saveAndRefresh();
+                    alert("Data berhasil dipulihkan!");
+                } catch (err) { alert("File tidak dikenali."); }
             };
-            reader.readAsText(file);
-            event.target.value = ''; // Reset input
+            reader.readAsText(event.target.files[0]);
         }
+
+        window.onclick = (e) => { if (e.target == document.getElementById('historyModal')) closeHistoryModal(); }
+        window.onload = () => { renderTable(); updateChart(); };
     </script>
 </body>
 </html>
